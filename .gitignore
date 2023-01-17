@@ -12,5 +12,4 @@ results/video/*
 data/*
 tracking_trials/*
 risultati_17_1/*
-code/*
-!code/trajectoryAnalysis.ipynb
+code2/*
