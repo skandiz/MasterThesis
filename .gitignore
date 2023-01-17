@@ -12,11 +12,3 @@ results/video/*
 data/*
 tracking_trials/*
 risultati_17_1/*
-code/basic_units.py
-code/README.md
-code/test.ipynb
-code/ipyparallel_test.ipynb	
-code/trajTracking.py
-code/vacf.py
-code/radDistrFunction.py
-code/video_rdf.py
