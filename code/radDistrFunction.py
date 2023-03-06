@@ -1,76 +1,104 @@
+import matplotlib.pyplot as plt
+import matplotlib.animation
+
 import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree, cKDTree
 import joblib
 from tqdm import tqdm
 
+run = False
+plot = True
 
-t = pd.read_csv("/Volumes/ExtremeSSD/UNI/thesis/ThesisData/data/Processed_data2.csv")
+###############################################################
+#                          import data                        #
+###############################################################
 
-
-nDrops = len(t.loc[t.frame==0])
-nFrames = max(t.frame)
+rawTrajs = pd.read_csv("../data/csv/Processed_data2.csv")
+nDrops = len(rawTrajs.loc[rawTrajs.frame==0])
+nFrames = max(rawTrajs.frame) + 1
 print(f"nDrops:{nDrops}")
-print(f"nFrames:{nFrames}")
+print(f"nFrames:{nFrames} --> {nFrames/10:.2f} s")
 
-r_c = np.array([[458, 498]])
+###############################################################
+#                  rdf parameters & function                  #
+###############################################################
+frames = nFrames
+
+dr = 30
+rDisk = 822/2
+rList = np.arange(0, rDisk, 1/4)
+rho = nDrops/(np.pi*rDisk**2) # nDrops -1 !
+
+COORDS = np.array(rawTrajs.loc[:,["x","y"]])
+
+#centre of the image --> to refine
+r_c = [470, 490]
 
 @joblib.delayed
-def computeRadialDistributionFunction(fromCentre, frame, COORDS, rList, dr, rho):
-    coords = COORDS[frame*nDrops:(frame+1)*nDrops, :]
-
-    # add coordinates of the centre to avoid division by zero errors
-    # note it doesnt count since there's always a -1 in n1 and n2
-    if fromCentre: coords = np.concatenate((coords, r_c), axis=0)
-    
+def rdf_from_centre(frame, COORDS, r_c, rList, dr, rho):
+    coords = COORDS[frame*nDrops:(frame+1)*nDrops,:]
     kd = KDTree(coords)
+
     avg_n = np.zeros(len(rList))
-
     for i, r in enumerate(rList):
+        # find all the points within r+dr
+        a = kd.query_ball_point(r_c, r + 20)
+        n1 = len(a) 
+        # find all the points within r+dr
+        b = kd.query_ball_point(r_c, r)
+        n2 = len(b)
         
-        if fromCentre:
-            a = kd.query_ball_point(r_c, r + 20)
-            b = kd.query_ball_point(r_c, r)
-        else:
-            a = kd.query_ball_point(coords, r + 20)
-            b = kd.query_ball_point(coords, r)
-        
-        n1 = 0
-        for j in a:
-            n1 += len(j) - 1
+        avg_n[i] = n1 - n2
 
-        n2 = 0
-        for j in b:
-            n2 += len(j) - 1
-        
-        avg_n[i] = n1/len(a) - n2/len(b)
-
-    if fromCentre: g2 = avg_n
-    else: g2 = avg_n/(np.pi*(dr**2 + 2*rList*dr)*rho)
+    g2 = avg_n/(np.pi*(dr**2 + 2*rList*dr)*rho)
     return g2
 
 
-fromCentre = True
-dr = 5
-rDisk = 822/2
-if fromCentre: rList = np.arange(0, 2*rDisk, 1)
-else: rList = np.arange(0, rDisk, 1)
-rho = nDrops/(np.pi*rDisk**2)
 
-COORDS = np.array(t.loc[:,["x","y"]])
-
-parallel = joblib.Parallel(n_jobs = -2)
-frames = 30000
-g2 = parallel(
-    computeRadialDistributionFunction(True, frame, COORDS, rList, dr, rho)
-    for frame in tqdm( range(frames) )
-)
-g2 = np.array(g2)
-
-saveData = False
-if saveData:
-    if fromCentre: pd.DataFrame(g2).to_csv(f'/Volumes/ExtremeSSD/UNI/thesis/ThesisData/data/g2_from_centre.csv', index=False)
-    else: pd.DataFrame(g2).to_csv(f'/Volumes/ExtremeSSD/UNI/thesis/ThesisData/data/g2.csv', index=False)
+if run:
+    parallel = joblib.Parallel(n_jobs = -2)
+    trial = parallel(
+        rdf_from_centre(frame, COORDS, r_c, rList, dr, rho)
+        for frame in tqdm( range(frames) )
+    )
+    trial = np.array(trial)
+    
+    trial_df = pd.DataFrame(trial)
+    trial_df.columns = [f'{i}' for i in rList]
+    trial_df.round(3)
+    trial_df.to_parquet("../data/csv/ref_centre.parquet", engine = 'pyarrow')
+else:
+    try:
+        trial = np.array(pd.read_parquet("../data/csv/ref_centre.parquet"))
+    except:
+        print('Run analysis first')
 
 
+if plot:
+    fig, ax = plt.subplots()
+    anim_running = True
+
+    def onClick(event):
+        global anim_running
+        if anim_running:
+            ani.event_source.stop()
+            anim_running = False
+        else:
+            ani.event_source.start()
+            anim_running = True
+
+    line, = ax.plot(rList, trial[0])
+    title = ax.set_title('Test, time=0')
+    ax.set_ylim(-1, 10)
+
+    def animate(frame):
+        line.set_ydata(trial[frame])  # update the data.
+        title.set_text('Test, time={}'.format(frame))
+        return line, 
+
+    fig.canvas.mpl_connect('button_press_event', onClick)
+    ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, frames), interval=5, blit=False)
+    #ani.save('../results/video/rdf_from_centre.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+    plt.show()
 
