@@ -1,0 +1,2 @@
+Power Law exponent for blue particles: 1.342 —> superdiffusion
+Power Law expoent for red particle: 0.927 —> subdiffusion
