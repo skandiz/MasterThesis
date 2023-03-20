@@ -10,8 +10,9 @@ MSc Matteo Scandola.key
 papers/*
 results_17_1/*
 
-tracking/results/*
-!tracking/results/pre_merge_tracking.parquet
+tracking/results/merging/*
+tracking/results/tracking_trials/*
+tracking/results/parquet/full_movie_tracking.parquet
 tracking/data/*
 
 analysis/analysis_data/*
