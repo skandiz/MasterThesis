@@ -15,6 +15,7 @@ tracking/results/merging/*
 tracking/results/tracking_trials/*
 tracking/results/parquet/full_movie_tracking.parquet
 tracking/data/*
+results_20_03.zip
 
 analysis/analysis_data/*
 
