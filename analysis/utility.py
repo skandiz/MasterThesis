@@ -156,6 +156,8 @@ def MB_2D(v, sigma):
 def normal_distr(x, sigma, mu):
     return 1/(np.sqrt(2*np.pi)*sigma) * np.exp(-0.5*((x-mu)/sigma)**2)
 
+def lorentian_distr(x, gamma, x0):
+    return 1/np.pi * gamma / ((x-x0)**2 + gamma**2)
 
 # Histogram fit
 def fit_hist(y, bins_, distribution, p0_):
