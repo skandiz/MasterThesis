@@ -45,8 +45,12 @@ def powerLawFit(f, x, nDrops, yerr):
 
 def get_imsd(trajs, pxDimension, fps, maxLagtime, nDrops):
     imsd = tp.imsd(trajs, mpp = pxDimension, fps = fps, max_lagtime = maxLagtime)
-    fit, pw_exp = powerLawFit(imsd[1:], imsd[1:].index, nDrops, None)
-    return imsd, fit, pw_exp
+    # fit the diffusive region of the MSD
+    fit_diff, pw_exp_diff = powerLawFit(imsd[1:], imsd[1:].index, nDrops, None)
+
+    # fit the 'ballistic' region of the MSD
+    fit_ball, pw_exp_ball = powerLawFit(imsd[:1], imsd[:1].index, nDrops, None)
+    return imsd, fit_diff, pw_exp_diff, fit_ball, pw_exp_ball
 
 
 def get_emsd(imsd, x, red_particle_idx, nDrops):
@@ -54,22 +58,35 @@ def get_emsd(imsd, x, red_particle_idx, nDrops):
     MSD_b = [MSD[:, [x for x in range(nDrops) if x != red_particle_idx]].mean(axis = 1),
                 MSD[:,[x for x in range(nDrops) if x != red_particle_idx]].std(axis = 1)]
     MSD_r = MSD[:, red_particle_idx]
+    # fit the diffusive region of the MSD
     fit_b, pw_exp_b = powerLawFit(MSD_b[0][9:], x, 1, MSD_b[1][9:])
     fit_r, pw_exp_r = powerLawFit(MSD_r[9:], x, 1, None)
-    res = {"fit_b":fit_b, "pw_exp_b":pw_exp_b, "fit_r":fit_r, "pw_exp_r":pw_exp_r}
-    return MSD_b, MSD_r, res
+    diffusive_results = {"fit_b":fit_b, "pw_exp_b":pw_exp_b, "fit_r":fit_r, "pw_exp_r":pw_exp_r}
 
+    # fit the 'ballistic' region of the MSD
+    fit_b, pw_exp_b = powerLawFit(MSD_b[0][:10], np.arange(0.1, 1.1, 0.1), 1, MSD_b[1][:10])
+    fit_r, pw_exp_r = powerLawFit(MSD_r[:10], np.arange(0.1, 1.1, 0.1), 1, None)
+    ballistic_results = {"fit_b":fit_b, "pw_exp_b":pw_exp_b, "fit_r":fit_r, "pw_exp_r":pw_exp_r}
+    return MSD_b, MSD_r, diffusive_results, ballistic_results
 
 
 def get_imsd_windowed(nSteps, startFrames, endFrames, trajs, pxDimension, fps, maxLagtime, nDrops):
     MSD_wind = []
+
+    # diffusive region of the MSD
     fit_wind = np.zeros((nSteps, nDrops, maxLagtime-9))
     pw_exp_wind = np.zeros((nSteps, nDrops, 2, 2))
+
+    # 'ballistic' region of the MSD
+    fit_ball_wind = np.zeros((nSteps, nDrops, 10))
+    pw_exp_ball_wind = np.zeros((nSteps, nDrops, 2, 2))
+
     for i in tqdm(range(nSteps)):
         trajs_wind = trajs.loc[trajs.frame.between(startFrames[i], endFrames[i])]
-        temp, fit_wind[i], pw_exp_wind[i] = get_imsd(trajs_wind, pxDimension, fps, maxLagtime, nDrops)
+        temp, fit_wind[i], pw_exp_wind[i], fit_ball_wind[i], pw_exp_ball_wind[i] = get_imsd(trajs_wind, pxDimension,\
+                                                                                             fps, maxLagtime, nDrops)
         MSD_wind.append(temp)
-    return MSD_wind, fit_wind, pw_exp_wind
+    return MSD_wind, fit_wind, pw_exp_wind, fit_ball_wind, pw_exp_ball_wind
 
 
 def get_emsd_windowed(imsds, x, nDrops, red_particle_idx, nSteps, maxLagtime):
@@ -78,18 +95,32 @@ def get_emsd_windowed(imsds, x, nDrops, red_particle_idx, nSteps, maxLagtime):
                     EMSD_wind[:, :, [x for x in range(nDrops) if x != red_particle_idx]].std(axis = 2)]
     EMSD_wind_r = EMSD_wind[:, :, red_particle_idx]
 
+    # diffusive region of the MSD
     fit_wind_b = np.zeros((nSteps, maxLagtime-9))
     pw_exp_wind_b = np.zeros((nSteps, 2, 2))
     fit_wind_r = np.zeros((nSteps, maxLagtime-9))
     pw_exp_wind_r = np.zeros((nSteps, 2, 2))
-
+    
     for i in range(nSteps):
         fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, 9:], x, 1, EMSD_wind_b[1][i, 9:])
         fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[i, 9:], x, 1, None)
     
-    res = {"fit_wind_b":fit_wind_b, "pw_exp_wind_b":pw_exp_wind_b, "fit_wind_r":fit_wind_r, "pw_exp_wind_r":pw_exp_wind_r}
+    diffusive_results = {"fit_wind_b":fit_wind_b, "pw_exp_wind_b":pw_exp_wind_b, "fit_wind_r":fit_wind_r,\
+                          "pw_exp_wind_r":pw_exp_wind_r}
 
-    return EMSD_wind_b, EMSD_wind_r, res
+    # 'ballistic' region of the MSD
+    fit_wind_b = np.zeros((nSteps, 10))
+    pw_exp_wind_b = np.zeros((nSteps, 2, 2))
+    fit_wind_r = np.zeros((nSteps, 10))
+    pw_exp_wind_r = np.zeros((nSteps, 2, 2))
+    for i in range(nSteps):
+        fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, :10], np.arange(0.1, 1.1, 0.1), 1, EMSD_wind_b[1][i, :10])
+        fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[i, :10], np.arange(0.1, 1.1, 0.1), 1, None)
+    ballistic_results = {"fit_wind_b":fit_wind_b, "pw_exp_wind_b":pw_exp_wind_b, "fit_wind_r":fit_wind_r,\
+                          "pw_exp_wind_r":pw_exp_wind_r}
+
+
+    return EMSD_wind_b, EMSD_wind_r, diffusive_results, ballistic_results
 
 
 # get trajectories

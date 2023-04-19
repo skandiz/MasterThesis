@@ -13,7 +13,9 @@ results_20_03/*
 
 tracking/results/merging/*
 tracking/results/tracking_trials/*
-tracking/results/parquet/full_movie_tracking.parquet
+tracking/results/tracking_data/*
+tracking/results/tracking_trackpy.mp4
+tracking/results/tracking_hough_trackpy_linking.mp4
 tracking/data/*
 results_20_03.zip
 
