@@ -22,3 +22,4 @@ analysis/hough_analysis_data/*
 
 analysis/analysis_data/*
 
+.tmp.driveupload/*
