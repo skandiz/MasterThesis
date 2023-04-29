@@ -143,8 +143,8 @@ def three_body_frame(coords, bList, sigma, hist_bins):
         res[b_ind] = numba_mean_ax0(three_body)
     return res
 
-@njit(parallel = True)
-def three_body_frame_trial(coords, bList, sigma, hist_bins):
+@njit(parallel = True, fastmath = True)
+def three_body_frame_modified(coords, bList, sigma, hist_bins):
     angles = np.ones((len(bList), nDrops, int((nDrops-1)*(nDrops-2)/2)))
     gauss_weights = np.ones((len(bList), nDrops, int((nDrops-1)*(nDrops-2)/2)))
     for b_ind in prange(len(bList)):
@@ -173,60 +173,15 @@ bList = np.arange(0, 300, 300/50) # step 0.2 too little --> 448 hours to complet
 print("bList length: ", bList.shape[0])
 hist_bins = np.arange(0, np.pi, np.pi/100)
 hist_centers = (hist_bins[:-1] + hist_bins[1:])/2
-frames = np.arange(0, 30000, 10)
+frames = np.arange(0, 30000, 100)
 
 counts = np.zeros((len(frames), len(bList), nDrops, len(hist_bins)-1))
 for frame_ind in tqdm(range(len(frames))):
-    test_ang, test_weights = three_body_frame_trial(COORDS[frames[frame_ind]:frames[frame_ind]+50], bList, sigma, hist_bins)
+    test_ang, test_weights = three_body_frame_modified(COORDS[frames[frame_ind]:frames[frame_ind]+50], bList, sigma, hist_bins)
     for b_ind in range(len(bList)):
         for i in range(nDrops):
             counts[frame_ind, b_ind, i] = np.histogram(test_ang[b_ind, i], bins = hist_bins, weights = test_weights[b_ind, i])[0]
 test_reshape = counts.reshape((len(bList)*nDrops*(len(hist_bins)-1), len(frames)))
 test_df = pd.DataFrame(test_reshape)
 test_df.columns = frames.astype(str)
-test_df.to_parquet(f"./{analysis_data_path}/test_3body2.parquet")
-
-
-b_ind = 8
-frame_ind = 2
-fig, ax = plt.subplots(1, 1, figsize = (10, 5))
-ax.plot(hist_centers, counts[frame_ind, b_ind].T, 'b.', alpha = 0.1)
-ax.plot(hist_centers, np.mean(counts[frame_ind, b_ind], axis = 0), color = "r", label = "mean")
-ax.set(title = f"Three Body Distribution - b = {bList[b_ind]} - frame = {frames[frame_ind]}", xlabel = "Angle [rad]", ylabel = "Count")
-ax.legend()
-plt.show()
-
-if 0: # doesn't work ;(
-    if 0:
-        COORDS = np.array(rawTrajs.loc[:,["x","y"]])
-        sigma = 38
-        bList = np.arange(0, 3*sigma, 3*sigma/10)
-        print("bList length: ", bList.shape[0])
-        frames = np.arange(0, 30000, 10, dtype = int)
-        nFrames = len(frames)
-
-        hist_bins = np.arange(0, np.pi, np.pi/100)
-        mean_3_body = np.zeros((nFrames, len(bList), len(hist_bins)-1))
-
-        for frame_ind in tqdm(range(nFrames)):
-            mean_3_body[frame_ind] = three_body_frame(COORDS[frames[frame_ind]:frames[frame_ind]+50], bList, sigma, hist_bins)
-                
-        # save to txt frames, bList and hist bins
-        if 1:
-            np.savetxt(f"./{analysis_data_path}/3_body/frames.txt", frames)
-            np.savetxt(f"./{analysis_data_path}/3_body/bList.txt", bList)
-            np.savetxt(f"./{analysis_data_path}/3_body/hist_bins.txt", hist_bins)
-            for i, b in enumerate(bList):
-                temp = pd.DataFrame(mean_3_body[:, i])
-                temp.columns = [str(i) for i in temp.columns]
-                temp.to_parquet(f"./{analysis_data_path}/3_body/mean_3_body_{b}.parquet")
-    else:
-        frames = np.loadtxt(f"./{analysis_data_path}/3_body/frames.txt").astype(int)
-        nFrames = len(frames)
-        bList = np.loadtxt(f"./{analysis_data_path}/3_body/bList.txt").astype(int)
-        hist_bins = np.loadtxt(f"./{analysis_data_path}/3_body/hist_bins.txt")
-        mean_3_body = np.zeros((nFrames, len(bList), len(hist_bins)-1))
-        for i, b in enumerate(bList):
-            mean_3_body[:, i] = pd.read_parquet(f"./{analysis_data_path}/3_body/mean_3_body_{int(b)}.parquet").values
-
-
+test_df.to_parquet(f"./{analysis_data_path}/3_body/test_3body2.parquet")
