@@ -1,104 +1,97 @@
-import pandas as pd 
+import os
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.animation
-plt.rcParams['figure.figsize'] = (9, 6)
-writervideo = matplotlib.animation.FFMpegWriter(fps=60)
+import matplotlib.gridspec as gridspec
+plt.rcParams['figure.figsize'] = [10, 4]
+plt.rcParams['font.size'] = 8
+mpl.rc('image', cmap='gray')
+import trackpy as tp
+tp.quiet()
+
+import numpy as np
+import pandas as pd
+import csv, json
 import pims
+from PIL import Image, ImageDraw
+import cv2
+
+from scipy.optimize import dual_annealing, linear_sum_assignment
+from scipy.spatial import distance_matrix
+from tqdm import tqdm
+import random
+import stardist as star
 
 # Import data
-data = pims.open('/Volumes/ExtremeSSD/UNI/ThesisData/data_video/movie.mp4')
-rawTrajs = pd.read_csv("/Volumes/ExtremeSSD/UNI/ThesisData/data/Processed_data2.csv")
-nDrops = len(rawTrajs.loc[rawTrajs.frame==0])
-nFrames = max(rawTrajs.frame)
-print(f"nDrops:{nDrops}")
-print(f"nFrames:{nFrames}")
-
-fig = plt.figure()
-anim_running = True
-
-def onClick(event):
-    global anim_running
-    if anim_running:
-        ani.event_source.stop()
-        anim_running = False
-    else:
-        ani.event_source.start()
-        anim_running = True
-
-def update_graph(frame):
-    df = rawTrajs.loc[(rawTrajs.frame == frame) , ["x","y","color"]]
-    graph.set_offsets(df)
-    graph.set_edgecolor(df.color)
-    graph2.set_data(data[frame])
-    time = frame / 10
-    title.set_text('Time = {} s'.format(time))
-    return graph
-
-ax = fig.add_subplot(111)
-title = ax.set_title('Time=0')
-df = rawTrajs.loc[(rawTrajs.frame == 0), ["x","y","color"]]
-
-graph = ax.scatter(df.x, df.y, facecolors = 'none', edgecolors = df.color, s = 300)
-
-graph2 = ax.imshow(data[0])
-
-fig.canvas.mpl_connect('button_press_event', onClick)
-ani = matplotlib.animation.FuncAnimation(fig, update_graph, 30000, interval = 20, blit=False)
-ani.save(f'/Volumes/ExtremeSSD/UNI/thesis/Results/result_videos/try.mp4', writer=writervideo)
-plt.close()
-
-'''
-
-from PIL import Image, ImageDraw
-
 @pims.pipeline
-def crop2(image, x1, y1, x2, y2):
+def hough_preprocessing(image, x1, y1, x2, y2):    
+    """
+    Pims pipeline preprocessing of the image for the HoughCircles function.
+    Crops the image to remove the petri dish, converts the image to grayscale and applies a median filter.
+
+    Parameters
+    ----------
+    image: image
+        image to preprocess.
+    x1, y1, x2, y2: int
+        coordinates of the circle to crop.
+    Returns
+    -------
+    npImage: array
+        image to be analyzed.
+    """
     npImage = np.array(image)
-    
+    #npImage = cv2.cvtColor(npImage, cv2.COLOR_BGR2HSV)
     # Create same size alpha layer with circle
     alpha = Image.new('L', (920, 960), 0)
+
     draw = ImageDraw.Draw(alpha)
     draw.pieslice(((x1, y1), (x2, y2)), 0, 360, fill=255)
 
-    # Convert alpha Image to numpy arrayf
+    # Convert alpha Image to numpy array
     npAlpha = np.array(alpha)
-    npImage = npImage[:,:,1] * npAlpha
+    npImage = cv2.cvtColor(npImage, cv2.COLOR_BGR2GRAY)*npAlpha #npImage[:, :, 1] * npAlpha
     
     ind = np.where(npImage == 0)
-    # npImage[150, 150] color of the border to swap with the black
+    # npImage[200, 200] color of the border to swap with the black
     npImage[ind] = npImage[200, 200]
+    npImage = cv2.medianBlur(npImage, 5)
     return npImage
 
-fig = plt.figure()
-anim_running = True
+data = hough_preprocessing(pims.open('./data/movie.mp4'), 40, 55, 895, 910)
 
-def onClick(event):
-    global anim_running
-    if anim_running:
-        ani.event_source.stop()
-        anim_running = False
-    else:
-        ani.event_source.start()
-        anim_running = True
+print("preloading data...")
+fig, ax = plt.subplots()
+ax.imshow(data[0])
+plt.show()
+"""
+data = [frame for frame in data] # data preload
+traj_part = "pre_merge"
+hough_df = pd.read_parquet(f"./results/tracking_data/hough/linked_{traj_part}.parquet")
 
+fig = plt.figure(figsize = (8, 8))
 def update_graph(frame):
-    df = t.loc[t.frame == frame, ["x","y","color"]]
-    graph.set_offsets(df)
-    graph.set_facecolor(df.color)
-    graph2.set_data(frames[frame])
-    title.set_text('frame={}'.format(frame))
+    df = hough_df.loc[(hough_df.frame == frame), ["x", "y", "color", "d"]]
+    for i in range(len(df)):
+        graph[i].center = (df.x.values[i], df.y.values[i])
+        graph[i].radius = df.d.values[i]
+    graph2.set_data(data[frame])
+    title.set_text('Hough features location & Trackpy linking - frame = {}'.format(frame))
     return graph
 
 ax = fig.add_subplot(111)
-title = ax.set_title('Ao')
-df = t.loc[t['frame'] == 0, ["x","y","color"]]
+title = ax.set_title('Hough features location & Trackpy linking - frame = 0')
+ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
+df = hough_df.loc[(hough_df.frame == 0), ["x","y","color","d"]]
 
-graph = ax.scatter(df.x, df.y, s=50, ec = "w", facecolor = df.color)
+graph = []
+for i in range(len(df)):
+    graph.append(ax.add_artist(plt.Circle((df.x.values[i], df.y.values[i]), df.d.values[i], color = df.color.values[i],\
+                                           fill = False, linewidth=1)))
+graph2 = ax.imshow(data[0])
 
-graph2 = ax.imshow(frames[0])
-
-fig.canvas.mpl_connect('button_press_event', onClick)
-ani = matplotlib.animation.FuncAnimation(fig, update_graph, 80600, interval = 50, blit=False)
-ani.save(f'/Users/matteoscandola/thesisData/videos/full_video/try.mp4', writer=writervideo)
+ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(0, int(max(hough_df.frame)), 1), interval = 5, blit=False)
+writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
+ani.save('./results/video2.mp4', writer=writer, dpi = 300)
 plt.close()
-'''
+"""
