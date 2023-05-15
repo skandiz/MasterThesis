@@ -17,6 +17,7 @@ tracking/results/tracking_data/*
 tracking/results/tracking_trackpy.mp4
 tracking/results/tracking_hough_trackpy_linking.mp4
 tracking/data/*
+tracking/stardist_res/*
 results_20_03.zip
 analysis/hough_analysis_data/*
 

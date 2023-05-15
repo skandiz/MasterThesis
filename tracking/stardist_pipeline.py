@@ -68,7 +68,7 @@ def preprocessing(image, x1, y1, x2, y2):
     return npImage
 
 data = preprocessing(pims.open('./data/movie.mp4'), 40, 55, 895, 910)
-
+data_preload = list(data[:1000])
 run = False
 if run:
     from stardist.models import StarDist2D
@@ -131,36 +131,36 @@ if run:
     ax.imshow(labeled_elements[0], cmap='gray')
     plt.show()
 
-df = pd.read_parquet('./data/df.parquet')
-df = df.loc[(df.prob > 0.88) & (df.area < 3000)]
-if not run: df["frame"] = np.array([frame*np.ones(50) for frame in range(10000)]).flatten()
-print(df)
+    df = pd.read_parquet('./data/df.parquet')
+    df = df.loc[(df.prob > 0.88) & (df.area < 3000)]
+    if not run: df["frame"] = np.array([frame*np.ones(50) for frame in range(10000)]).flatten()
+    print(df)
 
-#############################################################################################################
-#                                         LINK FEATURES WITH TRACKPY                                        #
-#############################################################################################################
+    #############################################################################################################
+    #                                         LINK FEATURES WITH TRACKPY                                        #
+    #############################################################################################################
 
-t = tp.link_df(df, 150, memory = 0, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
-print(t)
-t = t.sort_values(['frame', 'particle'])
+    t = tp.link_df(df, 150, memory = 0, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
+    print(t)
+    t = t.sort_values(['frame', 'particle'])
 
-# CREATE COLOR COLUMN AND SAVE DF
-n = max(t.particle)
-print(n)
-random.seed(5)
-colors = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(n)]
-for i in range(max(t.particle)+1-n):
-    colors.append("#00FFFF")
-c = []
-for p in t.particle:
-    c.append(colors[p])
-t["color"] = c
-trajectory = t.copy()
-trajectory.to_parquet('./data/df_linked.parquet')
-print(trajectory)
+    # CREATE COLOR COLUMN AND SAVE DF
+    n = max(t.particle)
+    print(n)
+    random.seed(5)
+    colors = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(n)]
+    for i in range(max(t.particle)+1-n):
+        colors.append("#00FFFF")
+    c = []
+    for p in t.particle:
+        c.append(colors[p])
+    t["color"] = c
+    trajectory = t.copy()
+    trajectory.to_parquet('./data/df_linked.parquet')
+    print(trajectory)
+
 trajectory = pd.read_parquet('./data/df_linked.parquet')
 print(trajectory)
-
 
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 ax.scatter(trajectory.area, trajectory.prob)
@@ -184,7 +184,7 @@ def update_graph(frame):
     for i in range(50):
         graph[i].center = (df.y.values[i], df.x.values[i])
         graph[i].radius = np.sqrt(df.area.values[i]/np.pi)
-    graph2.set_data(data[frame])
+    graph2.set_data(data_preload[frame])
     title.set_text('Tracking raw - frame = {}'.format(frame))
     return graph
 
@@ -197,13 +197,13 @@ graph = []
 for i in range(50):
     graph.append(ax.add_artist(plt.Circle((df.y.values[i], df.x.values[i]), np.sqrt(df.area.values[i]/np.pi), color = df.color.values[i],\
                                            fill = False, linewidth=1)))
-graph2 = ax.imshow(data[0])
+graph2 = ax.imshow(data_preload[0])
 
 fig.canvas.mpl_connect('button_press_event', onClick)
 ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(0, max(trajectory.frame), 1), interval = 5, blit=False)
-if 0: 
+if 1: 
     writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
-    ani.save('./results/tracking_raw_trial.mp4', writer=writer, dpi = 300)
+    ani.save('./results/tracking_stardist.mp4', writer=writer, dpi = 300)
 plt.show()
 
 """
