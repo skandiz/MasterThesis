@@ -22,6 +22,8 @@ results_20_03.zip
 analysis/hough_analysis_data/*
 
 analysis/analysis_data/*
+analysis/stardist_analysis_data/*
+analysis/stardist_results/graph/motif/*
 
 .tmp.driveupload/*
 *.pdf
