@@ -5,11 +5,14 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+.tmp.driveupload/*
+*.pdf
 
 MSc Matteo Scandola.key
 papers/*
 results_17_01/*
 results_20_03/*
+results_20_03.zip
 
 tracking/results/merging/*
 tracking/results/tracking_trials/*
@@ -18,12 +21,8 @@ tracking/results/tracking_trackpy.mp4
 tracking/results/tracking_hough_trackpy_linking.mp4
 tracking/data/*
 tracking/stardist_res/*
-results_20_03.zip
-analysis/hough_analysis_data/*
+
+analysis/old/*
 
 analysis/analysis_data/*
-analysis/stardist_analysis_data/*
-analysis/stardist_results/graph/motif/*
-
-.tmp.driveupload/*
-*.pdf
+analysis/results/graph/motif/*
