@@ -7,21 +7,16 @@ ehthumbs.db
 Thumbs.db
 .tmp.driveupload/*
 *.pdf
+*.mp4
 
 MSc Matteo Scandola.key
 papers/*
-results_17_01/*
-results_20_03/*
-results_20_03.zip
 
-tracking/results/merging/*
-tracking/results/tracking_trials/*
-tracking/results/tracking_data/*
-tracking/results/tracking_trackpy.mp4
-tracking/results/tracking_hough_trackpy_linking.mp4
 tracking/data/*
+tracking/25b_25r/*
+tracking/49b_1r/*
 tracking/stardist_res/*
 
-analysis/old/*
+analysis/49b_1r/old/*
 
-analysis/analysis_data/*
+analysis/49b_1r/analysis_data/*
