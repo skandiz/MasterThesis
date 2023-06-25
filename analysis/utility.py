@@ -50,23 +50,23 @@ def get_imsd(trajs, pxDimension, fps, maxLagtime, nDrops):
     return imsd, fit, pw_exp
 
 
-def get_emsd(imsd, x, red_particle_idx, nDrops):
+def get_emsd(imsd, x, fps, red_mask, nDrops):
     MSD = np.array(imsd)
-    MSD_b = [MSD[:, [x for x in range(nDrops) if x != red_particle_idx]].mean(axis = 1),
-                MSD[:,[x for x in range(nDrops) if x != red_particle_idx]].std(axis = 1)]
-    MSD_r = MSD[:, red_particle_idx]
+    MSD_b = [MSD[:, ~red_mask].mean(axis = 1),
+                MSD[:, ~red_mask].std(axis = 1)]
+    MSD_r = [MSD[:, red_mask].mean(axis = 1),
+                MSD[:, red_mask].std(axis = 1)]
     # fit the diffusive region of the MSD
-    fit_b, pw_exp_b = powerLawFit(MSD_b[0][9:], x, 1, MSD_b[1][9:])
-    fit_r, pw_exp_r = powerLawFit(MSD_r[9:], x, 1, None)
-    results = {"fit_b":fit_b, "pw_exp_b":pw_exp_b, "fit_r":fit_r, "pw_exp_r":pw_exp_r}
+    fit_b, pw_exp_b = powerLawFit(MSD_b[0][fps-1:], x, 1, MSD_b[1][fps-1:])
+    fit_r, pw_exp_r = powerLawFit(MSD_r[0][fps-1:], x, 1, MSD_r[1][fps-1:])
+    results = {"fit_b": fit_b, "pw_exp_b": pw_exp_b, "fit_r": fit_r, "pw_exp_r": pw_exp_r}
     return MSD_b, MSD_r, results
 
 
 def get_imsd_windowed(nSteps, startFrames, endFrames, trajs, pxDimension, fps, maxLagtime, nDrops):
     MSD_wind = []
-
     # diffusive region of the MSD
-    fit_wind = np.zeros((nSteps, nDrops, maxLagtime-9))
+    fit_wind = np.zeros((nSteps, nDrops, maxLagtime - fps+1))
     pw_exp_wind = np.zeros((nSteps, nDrops, 2, 2))
     for i in tqdm(range(nSteps)):
         trajs_wind = trajs.loc[trajs.frame.between(startFrames[i], endFrames[i])]
@@ -77,19 +77,20 @@ def get_imsd_windowed(nSteps, startFrames, endFrames, trajs, pxDimension, fps, m
 
 def get_emsd_windowed(imsds, x, nDrops, red_particle_idx, nSteps, maxLagtime):
     EMSD_wind = np.array(imsds)
-    EMSD_wind_b = [EMSD_wind[:, :, [x for x in range(nDrops) if x != red_particle_idx]].mean(axis = 2), 
-                    EMSD_wind[:, :, [x for x in range(nDrops) if x != red_particle_idx]].std(axis = 2)]
-    EMSD_wind_r = EMSD_wind[:, :, red_particle_idx]
+    EMSD_wind_b = [EMSD_wind[:, :, ~red_mask].mean(axis = 2), 
+                        EMSD_wind[:, :, ~red_mask].std(axis = 2)]
+    EMSD_wind_r = [EMSD_wind[:, :, red_mask].mean(axis = 2), 
+                    EMSD_wind[:, :, red_mask].std(axis = 2)]
 
     # diffusive region of the MSD
-    fit_wind_b = np.zeros((nSteps, maxLagtime-9))
+    fit_wind_b = np.zeros((nSteps, maxLagtime-fps+1))
     pw_exp_wind_b = np.zeros((nSteps, 2, 2))
-    fit_wind_r = np.zeros((nSteps, maxLagtime-9))
+    fit_wind_r = np.zeros((nSteps, maxLagtime-fps+1))
     pw_exp_wind_r = np.zeros((nSteps, 2, 2))
     
-    for i in range(nSteps):
-        fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, 9:], x, 1, EMSD_wind_b[1][i, 9:])
-        fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[i, 9:], x, 1, None)
+    for i in tqdm(range(nSteps)):
+        fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, fps-1:], x, 1, EMSD_wind_b[1][i, fps-1:])
+        fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[i, fps-1:], x, 1, EMSD_wind_r[1][i, fps-1:])
     
     results = {"fit_wind_b":fit_wind_b, "pw_exp_wind_b":pw_exp_wind_b, "fit_wind_r":fit_wind_r,\
                           "pw_exp_wind_r":pw_exp_wind_r}
