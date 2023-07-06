@@ -24,7 +24,7 @@ run_windowed_analysis = False
 plot_verb = True
 animated_plot_verb = True
 save_verb = True
-run_analysis_verb = False
+run_analysis_verb = True
 
 msd_run = False
 speed_run = False
@@ -314,6 +314,7 @@ if 1:
         analysis_data_path = "./49b_1r/analysis_data"
         red_particle_idx = 8
         fps = 10
+        maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
         v_step = 10
     else:
         data_path = "../tracking/25b_25r/df_linked.parquet"
@@ -321,6 +322,7 @@ if 1:
         analysis_data_path = "./25b_25r/analysis_data"
         red_particle_idx = np.sort(np.array([27, 24, 8, 16, 21, 10, 49, 14, 12, 9, 7, 37, 36, 40, 45, 42, 13, 20, 26, 2, 39, 5, 11, 22, 44])).astype(int)
         fps = 30
+        maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
         v_step = 30
 
     rawTrajs = pd.read_parquet(data_path)
@@ -337,7 +339,6 @@ if 1:
 
     # ANALYSIS PARAMETERS
     pxDimension = 1 # has to be defined 
-    maxLagtime = 3000 # maximum lagtime to be considered
     x = np.arange(1, maxLagtime/fps + 1/fps, 1/fps) # range of power law fit
 
     # WINDOWED ANALYSIS PARAMETERS
@@ -982,7 +983,13 @@ if rdf_run:
     rho = nDrops/(np.pi*rDisk**2) # nDrops - 1 !???
 
     print("RDF - Trajectories")
-    rdf = get_rdf(run_analysis_verb, nFrames, rawTrajs, rList, dr, rho)
+    rdf = get_rdf(run_analysis_verb, 100, rawTrajs, rList, dr, rho)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(rList, rdf[-1])
+    ax.set(title = "Radial Distribution Function - Trajectories", ylabel = "g(r)", xlabel = "r [px]")
+    ax.grid()
+    plt.show()
 
     if animated_plot_verb:
         # Animated plot for trajs results
@@ -996,20 +1003,18 @@ if rdf_run:
             else:
                 ani.event_source.start()
                 anim_running = True
-
+        def animate(frame):
+            line.set_ydata(rdf[frame])  # update the data.
+            title.set_text(f'RDF - Trajectories {int(frame/fps)} s')
+            return line, 
 
         line, = ax.plot(rList, rdf[0])
         title = ax.set_title('RDF - Trajectories 0 s')
-        def animate(frame):
-            line.set_ydata(rdf[frame])  # update the data.
-            title.set_text('RDF - Trajectories {} s'.format(frame/fps))
-            return line, 
-
         ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, rdf.shape[0], 10), interval=5, blit=False)
         ax.set(ylim = (-0.5, 30), ylabel = "g(r)", xlabel = "r (px)", title = "Radial Distribution Function from center")
         fig.canvas.mpl_connect('button_press_event', onClick)
-        if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
-        if show_verb:
+        if 0: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+        if 1:
             plt.show()
         else:
             plt.close()
