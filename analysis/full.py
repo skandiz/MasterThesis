@@ -22,15 +22,15 @@ import yupi.stats as ys
 show_verb = False
 run_windowed_analysis = False
 plot_verb = True
-animated_plot_verb = True
+animated_plot_verb = False
 save_verb = True
-run_analysis_verb = True
+run_analysis_verb = False
 
-msd_run = False
+msd_run = True
 speed_run = False
 turn_run = False
 autocorr_run = False
-rdf_run = True
+rdf_run = False
 
 #####################################################################################################################
 #                                                 DEFINE FUNCTIONS                                                  #
@@ -115,23 +115,22 @@ if 1:
             fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[0][i, fps-1:], x, 1, EMSD_wind_r[1][i, fps-1:])
         
         results = {"fit_wind_b":fit_wind_b, "pw_exp_wind_b":pw_exp_wind_b, "fit_wind_r":fit_wind_r,\
-                              "pw_exp_wind_r":pw_exp_wind_r}
+                                "pw_exp_wind_r":pw_exp_wind_r}
 
         return EMSD_wind_b, EMSD_wind_r, results
 
 
     # get trajectories
     def get_trajs(nDrops, red_particle_idx, trajs):
-        # raw trajectories
         blueTrajs = []
         redTrajs = []
         for i in range(0, nDrops):
             if i in red_particle_idx:
                 p = trajs.loc[trajs.particle == i, ["x","y"]]
-                redTrajs.append(Trajectory(p.x, p.y, dt = 1/10, traj_id=i))
+                redTrajs.append(Trajectory(p.x, p.y, dt = 1/fps, traj_id=i))
             else:
                 p = trajs.loc[trajs.particle == i, ["x","y"]]
-                blueTrajs.append(Trajectory(p.x, p.y, dt = 1/10, traj_id=i))
+                blueTrajs.append(Trajectory(p.x, p.y, dt = 1/fps, traj_id=i))
         return blueTrajs, redTrajs
 
 
@@ -195,7 +194,7 @@ if 1:
         ret_std = np.sqrt(np.diag(pcov))
         return ret, ret_std
 
-    def vacf_vindowed(trajectories, raw):        
+    def vacf_vindowed(trajectories):        
         vacf_b_wind = []
         vacf_b_std_wind = []
         vacf_r_wind = []
@@ -243,6 +242,7 @@ if 1:
     def get_rdf(run_analysis_verb, nFrames, trajectories, rList, dr, rho):
         
         if run_analysis_verb:
+            
             COORDS = np.array(trajectories.loc[:, ["x","y"]])
             parallel = joblib.Parallel(n_jobs = -2)
             rdf = parallel(
@@ -307,39 +307,52 @@ if 1:
 #############################################################################################################
 
 if 1: 
-    print("Import data...")
-    if 0:
+    video_selection =  "25b25r"  # "49b1r" 
+
+    if video_selection == "49b1r":
+        print("Import data 49b_1r ...")
+        system_name = "49b-1r system"
+        ref = pims.open('../tracking/data/movie.mp4')
         data_path = "../tracking/49b_1r/49b_1r_pre_merge/df_linked.parquet"
         res_path = "./49b_1r/results"
+        pdf_res_path = "../../thesis_project/images/49b_1r"
         analysis_data_path = "./49b_1r/analysis_data"
-        red_particle_idx = 8
+        
+        red_particle_idx = np.array([8]).astype(int)
         fps = 10
         maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
-        v_step = 10
-    else:
+        v_step = fps
+
+    elif video_selection == "25b25r":
+        print("Import data 25b_25r ...")
+        system_name = "25b-25r system"
+        ref = pims.open('../tracking/data/25r25b-1.mp4')
         data_path = "../tracking/25b_25r/df_linked.parquet"
+        pdf_res_path = "../../thesis_project/images/25b_25r"
         res_path = "./25b_25r/results"
         analysis_data_path = "./25b_25r/analysis_data"
         red_particle_idx = np.sort(np.array([27, 24, 8, 16, 21, 10, 49, 14, 12, 9, 7, 37, 36, 40, 45, 42, 13, 20, 26, 2, 39, 5, 11, 22, 44])).astype(int)
         fps = 30
-        maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
-        v_step = 30
+        maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds = 100 * fps
+        v_step = fps
+    else:
+        raise ValueError("No valid video selection")
+        
+    original_trajectories = pd.read_parquet(data_path)
+    nDrops = int(len(original_trajectories.loc[original_trajectories.frame==0]))
+    frames = original_trajectories.frame.unique().astype(int)
+    nFrames = len(frames)
+    print(f"Number of Droplets: {nDrops}")
+    print(f"Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s")
 
-    rawTrajs = pd.read_parquet(data_path)
-    nDrops = int(len(rawTrajs.loc[rawTrajs.frame==0]))
     red_mask = np.zeros(nDrops, dtype=bool)
     red_mask[red_particle_idx] = True
     colors = np.array(['b' for i in range(nDrops)])
     colors[red_particle_idx] = 'r'
 
-    frames = rawTrajs.frame.unique().astype(int)
-    nFrames = len(frames)
-    print(f"Number of Droplets: {nDrops}")
-    print(f"Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s")
-
     # ANALYSIS PARAMETERS
     pxDimension = 1 # has to be defined 
-    x = np.arange(1, maxLagtime/fps + 1/fps, 1/fps) # range of power law fit
+    x = np.arange(1, maxLagtime/fps + 1/fps, 1/fps) 
 
     # WINDOWED ANALYSIS PARAMETERS
     window = 300*fps # 320 s
@@ -353,25 +366,63 @@ if 1:
     default_kwargs_blue = {"color": "#00FFFF", "ec": (0, 0, 0, 0.6), "density": True}
     default_kwargs_red = {"color": "#EE4B2B", "ec": (0, 0, 0, 0.6), "density": True}
 
+    if 1:
+        trajectories = get_smooth_trajs(original_trajectories, nDrops, int(fps/2), 4)
+    else:
+        trajectories = original_trajectories
+
+    show_verb = False
+    run_windowed_analysis = True
+    plot_verb = True
+    animated_plot_verb = True
+    save_verb = True
+
 #############################################################################################################
 #                                              MSD ANALYSIS
 #############################################################################################################
 if msd_run:
     print("Global IMSD")
-    imsd, fit, pw_exp = get_imsd(rawTrajs, pxDimension, fps, maxLagtime, nDrops)
+    imsd, fit, pw_exp = get_imsd(trajectories, pxDimension, fps, maxLagtime, nDrops)
+
+    print("Global EMSD")
+    MSD_b, MSD_r, fit = get_emsd(imsd, x, fps, red_mask, nDrops)
+
+    # Trajs: temp variable to print pw_exp results
+    alpha_b = [round(fit["pw_exp_b"][0, 1], 3), round(fit["pw_exp_b"][1, 1], 3)]
+    k_b = [round(fit["pw_exp_b"][0, 0], 3), round(fit["pw_exp_b"][1, 0], 3)]
+    alpha_r = [round(fit["pw_exp_r"][0, 1], 3), round(fit["pw_exp_r"][1, 1], 3)]
+    k_r = [round(fit["pw_exp_r"][0, 0], 3), round(fit["pw_exp_r"][1, 0], 3)]
+
+    print(f"Blue Particles: a = {alpha_b[0]} ± {alpha_b[1]}, K = {k_b[0]} ± {k_b[1]}")
+    print(f"Red Particle: a = {alpha_r[0]} ± {alpha_r[1]}, K = {k_r[0]} ± {k_r[1]}")
+
 
     if plot_verb:
+
+        fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+        for i in range(nDrops):
+            ax.plot(imsd.index, imsd[i], color = colors[i])
+        ax.set(xscale = 'log', yscale = 'log', xlabel = "Time Lag [s]", ylabel = r'$\overline{\delta^2(\tau)}$ [$px^2$]')
+        ax.grid()
+        plt.suptitle(f"Mean Squared Displacement - {system_name}")
+        if save_verb:
+            plt.savefig(f"./{res_path}/mean_squared_displacement/IMSD.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/mean_squared_displacement/IMSD.pdf", bbox_inches='tight')
+        plt.close()
+
         fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 4))
         for i in range(nDrops):
             ax.plot(imsd.index, imsd[i], color = colors[i])
-        ax.set(xscale = 'log', yscale = 'log', xlabel = "Time Lag [s]", ylabel = r'$\langle \Delta r^2 \rangle$ [$px^2$]')
+        ax.set(xscale = 'log', yscale = 'log', xlabel = "Time Lag [s]", ylabel = r'$\langle \delta r^2 \rangle$ [$px^2$]')
         ax.grid()
         ax1.scatter(np.arange(nDrops), pw_exp[:, 0, 1], color = colors)
         ax1.set(xlabel = "Particle ID", ylabel = "Powerlaw Exponent")
         ax1.grid()
-        plt.suptitle("Mean Squared Displacement - Raw Trajectories")
+        plt.suptitle(f"Mean Squared Displacement - {system_name}")
         plt.tight_layout()
-        if save_verb: plt.savefig(f"./{res_path}/mean_squared_displacement/IMSD_raw.png", bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f"./{res_path}/mean_squared_displacement/IMSD_2.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/mean_squared_displacement/IMSD_2.pdf", bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -394,7 +445,9 @@ if msd_run:
         ax3.scatter(np.arange(nDrops), pw_exp[:, 0, 0], s = 10, color = colors)
         ax3.set(xlabel="Droplet ID", ylabel = "K", title = "Diffusion coefficients")
         ax3.grid()
-        if save_verb: plt.savefig(f"./{res_path}/mean_squared_displacement/IMSD_raw_v2.png", bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f"./{res_path}/mean_squared_displacement/IMSD_v2.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/mean_squared_displacement/IMSD_v2.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -402,29 +455,16 @@ if msd_run:
             
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.scatter(pw_exp[:, 0, 0], pw_exp[:, 0, 1], s = 10,  color = colors)
-        ax.set(xlabel = "Diffusion Coefficient", ylabel = r"$\alpha$")
+        ax.set(xlabel = r"$K_\alpha \; [px^2/s]$", ylabel = r"$\alpha$", title = f"Diffusion coefficients vs Scaling exponent - {system_name}")
         ax.grid(linewidth = 0.2)
-        if save_verb: plt.savefig(f"./{res_path}/mean_squared_displacement/k_alpha_scatterplot.png", bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f"./{res_path}/mean_squared_displacement/k_alpha_scatterplot.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/mean_squared_displacement/k_alpha_scatterplot.pdf", bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
             plt.close()
         
-
-
-    print("Global EMSD")
-    MSD_b, MSD_r, fit = get_emsd(imsd, x, fps, red_particle_idx, nDrops)
-
-    # Trajs: temp variable to print pw_exp results
-    alpha_b = [round(fit["pw_exp_b"][0, 1], 3), round(fit["pw_exp_b"][1, 1], 3)]
-    k_b = [round(fit["pw_exp_b"][0, 0], 3), round(fit["pw_exp_b"][1, 0], 3)]
-    alpha_r = [round(fit["pw_exp_r"][0, 1], 3), round(fit["pw_exp_r"][1, 1], 3)]
-    k_r = [round(fit["pw_exp_r"][0, 0], 3), round(fit["pw_exp_r"][1, 0], 3)]
-
-    print(f"Blue Particles: a = {alpha_b[0]} ± {alpha_b[1]}, K = {k_b[0]} ± {k_b[1]}")
-    print(f"Red Particle: a = {alpha_r[0]} ± {alpha_r[1]}, K = {k_r[0]} ± {k_r[1]}")
-
-    if plot_verb:
         fig, ax = plt.subplots(1, 1, figsize = (10, 4))
         ax.plot(imsd.index, MSD_b[0], 'b-', label = "Blue particles") 
         ax.plot(imsd[1:].index, fit["fit_b"], 'b--')
@@ -433,19 +473,24 @@ if msd_run:
         ax.plot(imsd[1:].index, fit["fit_r"], 'r--')
         ax.fill_between(imsd.index, MSD_r[0] - MSD_r[1], MSD_r[0] + MSD_r[1], alpha=0.5, edgecolor='#FF0000', facecolor='#FF5A52')
         ax.set(xscale = 'log', yscale = 'log', ylabel = r'$\langle \Delta r^2 \rangle$ [$px^2$]',   
-                xlabel = 'lag time $t$ [s]', title = "EMSD - Raw Trajectories")
+                xlabel = 'lag time $t$ [s]', title = f"EMSD - {system_name}")
         ax.legend()
         ax.grid()
-        if save_verb: plt.savefig(f"./{res_path}/mean_squared_displacement/EMSD_raw.png", bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f"./{res_path}/mean_squared_displacement/EMSD.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/mean_squared_displacement/EMSD.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
             plt.close()
-             
-
 
     print("Windowed IMSD")
-    if run_windowed_analysis: MSD_wind, fit_wind, pw_exp_wind = get_imsd_windowed(nSteps, startFrames, endFrames, rawTrajs, pxDimension, fps, maxLagtime, nDrops)
+    if run_windowed_analysis: 
+        MSD_wind, fit_wind, pw_exp_wind = get_imsd_windowed(nSteps, startFrames, endFrames, trajectories, pxDimension, fps, maxLagtime, nDrops)
+
+    print("Windowed EMSD")
+    if run_windowed_analysis: 
+        EMSD_wind_b, EMSD_wind_r, fit_dict = get_emsd_windowed(MSD_wind, x, fps, red_mask, nSteps, maxLagtime)
 
     if run_windowed_analysis and plot_verb:
         if animated_plot_verb:
@@ -464,10 +509,10 @@ if msd_run:
                 for i in range(nDrops):
                     graphic_data[i].set_ydata(np.array(MSD_wind[step].iloc[:, i]))
                     graphic_data2[i].set_data(startFrames[:step]/fps, pw_exp_wind[:step, i, 0, 1])
-                title.set_text(f"Mean Squared Displacement - Trajectories - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s")
+                title.set_text(f"Mean Squared Displacement - {system_name} - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s")
                 ax1.set_xlim(0, startFrames[step]/fps + 0.0001)
                 return graphic_data, graphic_data2,
-            title = ax.set_title(f"Mean Squared Displacement - Trajectories - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s")
+            title = ax.set_title(f"Mean Squared Displacement - {system_name} - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s")
             graphic_data = []
             for i in range(nDrops):
                 if i in red_particle_idx:
@@ -493,15 +538,9 @@ if msd_run:
             else:
                 plt.close()
 
-
-
-    print("Windowed EMSD")
-    if run_windowed_analysis: EMSD_wind_b, EMSD_wind_r, fit_dict = get_emsd_windowed(MSD_wind, x, fps, red_particle_idx, nSteps, maxLagtime)
-    
-    if run_windowed_analysis and plot_verb:
         # Power law exponents plot
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
-        ax.set_title(f"Power Law Exponents - Trajectories")
+        ax.set_title(f"Power Law Exponents - {system_name}")
         ax.plot(startFrames/fps, fit_dict["pw_exp_wind_b"][:, 0, 1], 'b-', alpha = 0.5, label = 'blue particles')
         ax.fill_between(startFrames/fps, fit_dict["pw_exp_wind_b"][:, 0, 1] - fit_dict["pw_exp_wind_b"][:, 1, 1],     
                             fit_dict["pw_exp_wind_b"][:, 0, 1] + fit_dict["pw_exp_wind_b"][:, 1, 1],
@@ -514,7 +553,9 @@ if msd_run:
         ax.legend()
         ax.grid()
         ax.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2))
-        if save_verb: plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.png', bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.png', bbox_inches='tight')
+            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -523,7 +564,7 @@ if msd_run:
 
         # Generalized Diffusion Coefficients plot
         fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 4))
-        plt.suptitle(f"Generalized Diffusion Coefficients - Trajectories")
+        plt.suptitle(f"Generalized Diffusion Coefficients - {system_name}")
         ax.plot(startFrames/fps, fit_dict["pw_exp_wind_b"][:, 0, 0], 'b-', alpha = 0.5, label = 'blue particles')
         ax.set(xlabel = 'Window time [s]', ylabel = 'K')
         ax.legend()
@@ -533,7 +574,9 @@ if msd_run:
         ax1.grid()
         ax1.set(xlabel = 'Window time [s]')
         plt.tight_layout()
-        if save_verb: plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.png', bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.png', bbox_inches='tight')
+            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -558,7 +601,7 @@ if msd_run:
                     anim_running = True
             def update_graph(step):
                 # update title
-                title.set_text(f"Mean Squared Displacement - Trajectories - window {startFrames[step]/fps} - {endFrames[step]/fps} seconds")
+                title.set_text(f"Mean Squared Displacement - {system_name} - window {startFrames[step]/fps} - {endFrames[step]/fps} seconds")
                 # update MSD
                 graphic_data[0].set_ydata(EMSD_wind_b[0][step])
                 graphic_data[1].set_ydata(EMSD_wind_r[0][step])
@@ -581,7 +624,7 @@ if msd_run:
                 ax1.set_xlim(0, (startFrames[step]+fps)/fps)
                 return graphic_data, fill_graph, line, line1, 
 
-            title = ax.set_title(f"Mean Squared Displacement - Trajectories - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
+            title = ax.set_title(f"Mean Squared Displacement - {system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
             graphic_data = []
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_b[0][0], 'b-', alpha=0.5, label = "Blue particles")[0])
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_r[0][0], 'r-' , label = "Red particle")[0] )
@@ -610,11 +653,10 @@ if msd_run:
 #                                              SPEED DISTRIBUTION ANALYSIS
 #############################################################################################################
 if speed_run:
-
     print(f"Speed Analysis: show_verb = {show_verb}, animated_plot_verb = {animated_plot_verb}")
 
     print("\n Global speed distribution analysis")
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, rawTrajs)
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories)
     bin_borders = np.arange(0, 100, .2)
     bin_centers = np.arange(0, 100, .2)[:-1] + .2 / 2
     x_interval_for_fit = np.linspace(bin_borders[0], bin_borders[-1], 10000)
@@ -623,7 +665,6 @@ if speed_run:
     v_red = ys.speed_ensemble(redTrajs, step = v_step)
     T_blue, T_blue_std = fit_hist(v_blue, bin_borders, MB_2D, [1.])
     T_red, T_red_std = fit_hist(v_red, bin_borders, MB_2D, [1.])
-    print("Trajectories")
     print(f"Blue Particles σ: {T_blue[0]} ± {T_blue_std[0]}")
     print(f"Red Particle σ: {T_red[0]} ± {T_red_std[0]}")
 
@@ -641,7 +682,9 @@ if speed_run:
 
         plt.suptitle("trajectories")
         plt.tight_layout()
-        if save_verb: plt.savefig(f"./{res_path}/speed_distribution/speed.png", )
+        if save_verb: 
+            plt.savefig(f"./{res_path}/speed_distribution/speed.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/speed_distribution/speed.pdf", bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -650,7 +693,7 @@ if speed_run:
 
 
     print("\n Windowed speed distribution Analysis")
-    v_blue_wind, v_red_wind = speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, rawTrajs, v_step, fps)
+    v_blue_wind, v_red_wind = speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajectories, v_step, fps)
     blue_fit_wind = np.ones((nSteps, 2))
     red_fit_wind = np.ones((nSteps, 2))
 
@@ -658,12 +701,38 @@ if speed_run:
         blue_fit_wind[k, 0], blue_fit_wind[k, 1] = fit_hist(v_blue_wind[k], bin_borders, MB_2D, [1.])
         red_fit_wind[k, 0], red_fit_wind[k, 1] = fit_hist(v_red_wind[k], bin_borders, MB_2D, [1.])
 
+    r2_blue = np.zeros(nSteps)
+    r2_red = np.zeros(nSteps)
+    for step in range(nSteps):
+        y = np.histogram(v_blue_wind[step], bins = bin_borders, density = True)[0]
+        y_fit = MB_2D(bin_centers, blue_fit_wind[step, 0])
+        ss_res = np.sum((y - y_fit) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r2_blue[step] = 1 - (ss_res / ss_tot)
+        y = np.histogram(v_red_wind[step], bins = bin_borders, density = True)[0]
+        y_fit = MB_2D(bin_centers, red_fit_wind[step, 0])
+        ss_res = np.sum((y - y_fit) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r2_red[step] = 1 - (ss_res / ss_tot)
+
     if plot_verb:   
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(startFrames/fps, r2_blue, 'b')
+        ax.plot(startFrames/fps, r2_red, 'r')
+        ax.grid(linewidth = 0.2)
+        ax.set(xlabel = "time [s]", ylabel = "R2", title = "R2 of the fit of the velocity distribution")
+        if save_verb: 
+            plt.savefig(f"./{res_path}/speed_distribution/r2.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/speed_distribution/r2.pdf", bbox_inches='tight')
+        if show_verb:
+            plt.show()
+        else:
+            plt.close()
 
         # Effetcive Temperature plot
         fig, (ax, ax1) = plt.subplots(2, 1, figsize = (8, 4), sharex=True)
         ax.errorbar(startFrames/fps, blue_fit_wind[:, 0], yerr = blue_fit_wind[:, 1], fmt = 'b', label="blue particles")
-        ax.set(ylabel = "T [??]", ylim = (1, 5), title = "Effective Temperature - Trajectories")
+        ax.set(ylabel = "T [??]", ylim = (1, 5), title = f"Effective Temperature - {system_name}")
         ax.legend()
         ax.grid()
         ax1.errorbar(startFrames/fps, red_fit_wind[:, 0], yerr = red_fit_wind[:, 1], fmt = 'r', label="red particles")
@@ -671,7 +740,9 @@ if speed_run:
         ax1.legend()
         ax1.grid()
         plt.tight_layout()
-        if save_verb: plt.savefig(f'./{res_path}/speed_distribution/T_eff.png', bbox_inches='tight')
+        if save_verb: 
+            plt.savefig(f'./{res_path}/speed_distribution/T_eff.png', bbox_inches='tight')
+            plt.savefig(f'./{pdf_res_path}/speed_distribution/T_eff.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -694,7 +765,7 @@ if speed_run:
             def prepare_animation(bar_container, bar_container2):
                 def animate(frame):
                     # update titles
-                    title.set_text(f"Trajectories - window {startFrames[frame]/fps} - {endFrames[frame]/fps} seconds")
+                    title.set_text(f"{system_name} - window {startFrames[frame]/fps} - {endFrames[frame]/fps} seconds")
                     #title2.set_text(f"Red particle velocity pdf {startFrames[frame]/fps} - {endFrames[frame]/fps} seconds")
 
                     # update histogram 1
@@ -715,7 +786,7 @@ if speed_run:
                 return animate
 
             _, _, bar_container = ax.hist(v_blue_wind[0], bin_borders, **default_kwargs_blue, label="blue particles")
-            title = ax.set_title(f"Trajectories - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
+            title = ax.set_title(f"{system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
             line, = ax.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, blue_fit_wind[0, 0]), label='fit')
             ax.set(xlabel = f"speed [{units}]", ylabel = "pdf", xlim = (0, 30), ylim = (0, 0.5))
             ax.legend()
@@ -735,7 +806,6 @@ if speed_run:
             else:
                 plt.close()
 
-
 #############################################################################################################
 #                                              TRURNING ANGLES DISTRIBUTION ANALYSIS
 #############################################################################################################
@@ -750,24 +820,20 @@ if turn_run:
         distribution_str = "lorentzian"
     else:
         raise ValueError("distribution_str must be either 'gaussian' or 'lorentzian'")
-
+        
     print(f"Turning Angles Analysis: show_verb = {show_verb}, animated_plot_verb = {animated_plot_verb}")
-
-
     print("\n Global turning angles analysis")
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, rawTrajs)
-
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories)
 
     bin_borders_turn = np.arange(-np.pi, np.pi + 0.0001, np.pi/50)
     bin_centers_turn = bin_borders_turn[:-1] + np.diff(bin_borders_turn) / 2
     x_interval_for_fit_turn = np.linspace(bin_borders_turn[0], bin_borders_turn[-1], 10000)
 
     theta_blue = ys.turning_angles_ensemble(blueTrajs, centered = True)
-    theta_red = ys.turning_angles_ensemble(redTrajs, centered = True)
+    theta_red  = ys.turning_angles_ensemble(redTrajs, centered = True)
     # normal distribution fit
     T_blue_rot, T_blue_rot_std = fit_hist(theta_blue, bin_borders_turn, distribution, [1., 0.])
     T_red_rot, T_red_rot_std = fit_hist(theta_red, bin_borders_turn, distribution, [1., 0.])
-    print("Trajectories")
     print(f"Blue Particles σ: {T_blue_rot[0]} ± {T_blue_rot_std[0]}, μ: {T_blue_rot[1]} ± {T_blue_rot_std[1]}")
     print(f"Red Particle σ: {T_red_rot[0]} ± {T_red_rot_std[0]}, μ: {T_red_rot[1]} ± {T_red_rot_std[1]}")
 
@@ -787,14 +853,16 @@ if turn_run:
         ax1.legend()
         ax1.set_ylim(0, 2)
         plt.suptitle("Turning angles pdf - trajectories")
-        if save_verb: plt.savefig(f"./{res_path}/turning_angles/{distribution_str}/turn_ang.png")
+        if save_verb: 
+            plt.savefig(f"./{res_path}/turning_angles/{distribution_str}/turn_ang.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/turning_angles/{distribution_str}/turn_ang.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
             plt.close()
 
     print("\n Windowed turning angles analysis")
-    theta_blue_wind, theta_red_wind = theta_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, rawTrajs, fps)
+    theta_blue_wind, theta_red_wind = theta_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajectories, fps)
 
     blue_fit_wind_turn = np.ones((nSteps, 2, 2))
     red_fit_wind_turn = np.ones((nSteps, 2, 2))
@@ -814,7 +882,7 @@ if turn_run:
         ax.plot(startFrames/fps, blue_fit_wind_turn[:, 0, 0], 'b', label="blue particles")
         ax.fill_between(startFrames/fps, blue_fit_wind_turn[:, 0, 0] - blue_fit_wind_turn[:, 1, 0],
                         blue_fit_wind_turn[:, 0, 0] + blue_fit_wind_turn[:, 1, 0], color='b', alpha=0.2)
-        ax.set(ylabel = "T [??]", title = "Effective Temperature - Trajectories")
+        ax.set(ylabel = "T [??]", title = f"Effective Temperature - {system_name}")
         ax.legend()
         ax.grid()
         ax1.plot(startFrames/fps, red_fit_wind_turn[:, 0, 0], 'r', label="red particles")
@@ -824,7 +892,9 @@ if turn_run:
         ax1.legend()
         ax1.grid()
         plt.tight_layout()
-        if save_verb: plt.savefig(f'./{res_path}/turning_angles/{distribution_str}/effective_T.png',  )
+        if save_verb: 
+            plt.savefig(f'./{res_path}/turning_angles/{distribution_str}/effective_T.png', bbox_inches='tight')
+            plt.savefig(f'./{pdf_res_path}/turning_angles/{distribution_str}/effective_T.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -847,7 +917,7 @@ if turn_run:
                     anim_running = True
             def prepare_animation(bar_container, bar_container2):
                 def animate(frame):
-                    title.set_text(f"Turning angles pdf - Trajectories - window {startFrames[frame]/fps} - {endFrames[frame]/fps} seconds")
+                    title.set_text(f"Turning angles pdf - {system_name} - window {startFrames[frame]/fps} - {endFrames[frame]/fps} seconds")
                     n, _ = np.histogram(theta_blue_wind[frame], bin_borders_turn, density = True)
                     for count, rect in zip(n, bar_container.patches):
                         rect.set_height(count)
@@ -860,7 +930,7 @@ if turn_run:
                 return animate
             _, _, bar_container = ax.hist(theta_red_wind[0], bin_borders_turn, **default_kwargs_blue, label="blue particles")
             line, = ax.plot(x_interval_for_fit_turn, distribution(x_interval_for_fit_turn, *blue_fit_wind_turn[0, 0]), label='fit')
-            title = ax.set_title(f"Turning angles pdf - Trajectories - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
+            title = ax.set_title(f"Turning angles pdf - {system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds")
             ax.set(ylabel = "pdf", ylim = (0, 3))
             ax.set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], [r'-$\pi$', r'$-\frac{\pi}{2}$', '$0$', r'$\frac{\pi}{2}$', r'$\pi$'])
             _, _, bar_container2 = ax1.hist(theta_red_wind[0], bin_borders_turn,  **default_kwargs_red, label="red particle")
@@ -875,60 +945,62 @@ if turn_run:
                 plt.show()
             else:
                 plt.close()
-            
 
 #############################################################################################################
 #                                           VELOCITY AUTOCORRELATION ANALYSIS
 #############################################################################################################
 if autocorr_run:
     print(f"Velocity Autocorrelation Analysis: show_verb = {show_verb}, run_windowed_analysis = {run_windowed_analysis}, animated_plot_verb = {animated_plot_verb}")
-
     print("Global Velocity Autocovariance Function")
-    
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, rawTrajs)
+
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories)
     vacf_b, vacf_std_b = ys.vacf(blueTrajs, time_avg=True, lag = maxLagtime)
     vacf_r, vacf_std_r = ys.vacf(redTrajs, time_avg=True, lag = maxLagtime)
     print(vacf_b.shape)
 
     if plot_verb:
-        #Global Velocity Autocovariance
-        fig, (ax, ax1) = plt.subplots(2, 1, figsize=(10, 5))
-        ax.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b, fmt='o', markersize = 1, color = "blue", label = 'blue particles')
-        ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b + vacf_std_b, vacf_b - vacf_std_b, alpha=1, edgecolor='#F0FFFF', facecolor='#00FFFF')
-        ax.grid()
-        ax.legend()
-        ax.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
-        ax1.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r, fmt='o', markersize = 1, color = "red", label = 'red particles')
-        ax1.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r + vacf_std_r, vacf_r - vacf_std_r, alpha=1, edgecolor='#FF0000', facecolor='#FF5A52')
-        ax1.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
-        ax1.grid()
-        ax1.legend()
-        plt.suptitle("Velocity autocorrelation function - trajectories")
-        plt.tight_layout()
-        if save_verb: plt.savefig(f"./{res_path}/velocity_autocovariance/vacf.png", )
-        if show_verb: 
-            plt.show()
-        else:
-            plt.close()
-    
+    #Global Velocity Autocovariance
+    fig, (ax, ax1) = plt.subplots(2, 1, figsize=(10, 5))
+    ax.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b, fmt='o', markersize = 1, color = "blue", label = 'blue particles')
+    ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b + vacf_std_b, vacf_b - vacf_std_b, alpha=1, edgecolor='#F0FFFF', facecolor='#00FFFF')
+    ax.grid()
+    ax.legend()
+    ax.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
+    ax1.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r, fmt='o', markersize = 1, color = "red", label = 'red particles')
+    ax1.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r + vacf_std_r, vacf_r - vacf_std_r, alpha=1, edgecolor='#FF0000', facecolor='#FF5A52')
+    ax1.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
+    ax1.grid()
+    ax1.legend()
+    plt.suptitle(f"Velocity autocorrelation function - {system_name}")
+    plt.tight_layout()
+    if save_verb: 
+        plt.savefig(f"./{res_path}/velocity_autocovariance/vacf.png", bbox_inches='tight')
+        plt.savefig(f"./{pdf_res_path}/velocity_autocovariance/vacf.pdf", bbox_inches='tight')
+    if show_verb: 
+        plt.show()
+    else:
+        plt.close()
+
     print("Windowed analysis")
     if run_windowed_analysis:
-        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = vacf_vindowed(rawTrajs, True)
+        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = vacf_vindowed(trajectories)
     else:
         vacf_b_wind     = pd.read_parquet(f"./{analysis_data_path}/velocity_autocovariance/vacf_b_wind.parquet")
         vacf_b_std_wind = pd.read_parquet(f"./{analysis_data_path}/velocity_autocovariance/vacf_b_std_wind.parquet")
         vacf_r_wind     = pd.read_parquet(f"./{analysis_data_path}/velocity_autocovariance/vacf_r_wind.parquet")
         vacf_r_std_wind = pd.read_parquet(f"./{analysis_data_path}/velocity_autocovariance/vacf_r_std_wind.parquet")
-    
+
     if plot_verb:
         # Velocity Variance
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(startFrames/fps, vacf_b_wind["0"], 'b', label = "Blue particles")
         ax.plot(startFrames/fps, vacf_r_wind["0"], 'r', label = "Red particle")
-        ax.set(title = "Time evolution of velocity variance - Trajectories", ylabel = "$\sigma$", xlabel = "Window Time [s]")
+        ax.set(title = f"Time evolution of velocity variance - {system_name}", ylabel = "$\sigma$", xlabel = "Window Time [s]")
         ax.grid()
         ax.legend()
-        if save_verb: plt.savefig(f"./{res_path}/velocity_autocovariance/vacf_wind_0.png", )
+        if save_verb: 
+            plt.savefig(f"./{res_path}/velocity_autocovariance/vacf_wind_0.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/velocity_autocovariance/vacf_wind_0.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else: 
@@ -948,11 +1020,11 @@ if autocorr_run:
                     anim_running = True
             def update_graph(step):
                 line.set_ydata(vacf_b_wind.iloc[step]/vacf_b_wind.iloc[step]["0"])
-                title.set_text(f"Velocity autocorrelation - Trajectories - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s")
+                title.set_text(f"Velocity autocorrelation - {system_name} - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s")
                 line1.set_ydata(vacf_r_wind.iloc[step]/vacf_r_wind.iloc[step]["0"])
                 return line, line1,
             ax = fig.add_subplot(211)
-            title = ax.set_title(f"Velocity autocorrelation - Trajectories - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s")
+            title = ax.set_title(f"Velocity autocorrelation - {system_name} - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s")
             line, = ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b_wind.iloc[0]/vacf_b_wind.iloc[0]["0"], 'b-', label = 'Blue particles')
             ax.set(ylabel = r'vacf [$(px/s)^2$]', xlabel = 'lag time $t$ [s]', xlim = (-1, 20), ylim = (-0.5, 1.1))
             ax.grid()
@@ -975,132 +1047,124 @@ if autocorr_run:
 #                                      RADIAL DISTRIBUTION FUNCTION ANALYSIS
 #############################################################################################################
 if rdf_run:
-    print(f"Radial Distribution Function Analysis: run_analysis_verb = {run_analysis_verb}, show_verb = {show_verb}, animated_plot_verb = {animated_plot_verb}")
-
+    run_analysis_verb = True
     dr = 5
-    rDisk = 822/2
+    # center of petri dish --> to refine
+    r_c = [ref[0].shape[0], ref[0].shape[1]] 
+    rDisk = max(ref[0].shape)/2
     rList = np.arange(0, 2*rDisk, 1)
     rho = nDrops/(np.pi*rDisk**2) # nDrops - 1 !???
 
-    print("RDF - Trajectories")
-    rdf = get_rdf(run_analysis_verb, 100, rawTrajs, rList, dr, rho)
+    print("RDF - {system_name}")
+    rdf = get_rdf(run_analysis_verb, nFrames, trajectories, rList, dr, rho)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(rList, rdf[-1])
-    ax.set(title = "Radial Distribution Function - Trajectories", ylabel = "g(r)", xlabel = "r [px]")
-    ax.grid()
-    plt.show()
+    print(f"RDF from center - {system_name}")
+    rdf_c = get_rdf_center(run_analysis_verb, nFrames, trajectories, r_c, rList, dr, rho)
 
-    if animated_plot_verb:
-        # Animated plot for trajs results
-        fig, ax = plt.subplots(1, 1, figsize=(10, 4))
-        anim_running = True
-        def onClick(event):
-            global anim_running
-            if anim_running:
-                ani.event_source.stop()
-                anim_running = False
-            else:
-                ani.event_source.start()
-                anim_running = True
-        def animate(frame):
-            line.set_ydata(rdf[frame])  # update the data.
-            title.set_text(f'RDF - Trajectories {int(frame/fps)} s')
-            return line, 
+    if plot_verb:
+        g_plot = rdf.T
+        timearr = np.linspace(0, rdf.shape[0], 10)/fps
+        timearr = timearr.astype(int)
 
-        line, = ax.plot(rList, rdf[0])
-        title = ax.set_title('RDF - Trajectories 0 s')
-        ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, rdf.shape[0], 10), interval=5, blit=False)
-        ax.set(ylim = (-0.5, 30), ylabel = "g(r)", xlabel = "r (px)", title = "Radial Distribution Function from center")
-        fig.canvas.mpl_connect('button_press_event', onClick)
-        if 0: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
-        if 1:
+        fig, ax = plt.subplots(1, 1, figsize=(8,6))
+        img = ax.imshow(g_plot, vmin = 0, vmax = 8)
+        ax.set(xticks = np.linspace(0, g_plot.shape[1], 10), yticks = np.linspace(0, g_plot.shape[0], 10))
+        ax.set(xticklabels = timearr, yticklabels = np.linspace(0, 2*rDisk, 10).astype(int))
+        ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = "rdf heatmap")
+        fig.colorbar(img, ax=ax)
+        ax.set_aspect(15)
+        if save_verb: 
+            plt.savefig(f"./{res_path}/radial_distribution_function/rdf_heatmap.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/radial_distribution_function/rdf_heatmap.pdf", bbox_inches='tight')
+        if show_verb: 
             plt.show()
         else:
             plt.close()
 
-    g_plot = rdf.T
-    timearr = np.linspace(0, rdf.shape[0], 10)/fps
-    timearr = timearr.astype(int)
-
-    fig, ax = plt.subplots(1, 1, figsize=(8,6))
-    img = ax.imshow(g_plot, vmin = 0, vmax = 8)
-    ax.set(xticks = np.linspace(0, g_plot.shape[1], 10), yticks = np.linspace(0, g_plot.shape[0], 10))
-    ax.set(xticklabels = timearr, yticklabels = np.linspace(0, 2*rDisk, 10).astype(int))
-    ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = "rdf heatmap")
-    fig.colorbar(img, ax=ax)
-    ax.set_aspect(15)
-    if save_verb: plt.savefig(f"./{res_path}/radial_distribution_function/rdf_heatmap.png", bbox_inches='tight' )
-    if show_verb: 
-        plt.show()
-    else:
-        plt.close()
-
-    dr = 5
-    rDisk = 822/2
-    rList = np.arange(0, rDisk, 1)
-    rho = nDrops/(np.pi*rDisk**2) # nDrops -1 !
-    r_c = [470, 490] #center of the image --> to refine
-
-    print("RDF from center - Trajectories")
-    rdf_c = get_rdf_center(run_analysis_verb, nFrames, rawTrajs, r_c, rList, dr, rho)
-
-    fig, ax = plt.subplots(1, 1, figsize = (10, 4))
-    ax.plot(rList, rdf_c.mean(axis=0), label="mean")
-    ax.fill_between(rList, rdf_c.mean(axis=0) - rdf_c.std(axis=0), \
-                        rdf_c.mean(axis=0) + rdf_c.std(axis=0), alpha=0.3, label="std")
-    ax.set(xlabel = "r [px]", ylabel = "g(r)", title = "RDF from center - Trajectories")
-    ax.legend()
-    if save_verb: plt.savefig(f"./{res_path}/radial_distribution_function/rdf_center.png", bbox_inches='tight' )
-    if show_verb: 
-        plt.show()
-    else:
-        plt.close()
-   
-    if animated_plot_verb:
-        # Animated plot for Smooth Trajectories
-        fig, ax = plt.subplots()
-        anim_running = True
-
-        def onClick(event):
-            global anim_running
-            if anim_running:
-                ani.event_source.stop()
-                anim_running = False
-            else:
-                ani.event_source.start()
-                anim_running = True
-
-        line, = ax.plot(rList, rdf_c[0])
-        title = ax.set_title('RDF from center - Trajectories 0 s')
-        ax.set_ylim(-1, 15)
-
-        def animate(frame):
-            line.set_ydata(rdf_c[frame])  # update the data.
-            title.set_text('RDF from center - Trajectories {} s'.format(frame/fps))
-            return line, 
-
-        fig.canvas.mpl_connect('button_press_event', onClick)
-        ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, nFrames, fps), interval = 5, blit=False)
-        if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_from_center.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
-        if show_verb:
+            
+        fig, ax = plt.subplots(1, 1, figsize = (10, 4))
+        ax.plot(rList, rdf_c.mean(axis=0), label="mean")
+        ax.fill_between(rList, rdf_c.mean(axis=0) - rdf_c.std(axis=0), \
+                            rdf_c.mean(axis=0) + rdf_c.std(axis=0), alpha=0.3, label="std")
+        ax.set(xlabel = "r [px]", ylabel = "g(r)", title = f"RDF from center - {system_name}")
+        ax.legend()
+        if save_verb: 
+            plt.savefig(f"./{res_path}/radial_distribution_function/rdf_center.png", bbox_inches='tight' )
+            plt.savefig(f"./{pdf_res_path}/radial_distribution_function/rdf_center.pdf", bbox_inches='tight' )
+        if show_verb: 
             plt.show()
         else:
             plt.close()
 
+        g_plot = rdf_c.T
+        fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+        img = ax.imshow(g_plot, vmin = 0, vmax = 10)
+        ax.set(xticks = np.linspace(0, g_plot.shape[1], 10), yticks = np.linspace(0, g_plot.shape[0], 10))
+        ax.set(xticklabels = timearr, yticklabels = np.linspace(0, rDisk, 10).astype(int))
+        ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = f"rdf from center heatmap - {system_name}")
+        fig.colorbar(img, ax=ax)
+        ax.set_aspect(30)
+        if save_verb: 
+            plt.savefig(f"./{res_path}/radial_distribution_function/rdf_center_heatmap.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/radial_distribution_function/rdf_center_heatmap.pdf", bbox_inches='tight')
+        if show_verb: 
+            plt.show()
+        else:
+            plt.close()
 
-    timearr = np.linspace(0, rdf.shape[0], 10)/fps
-    timearr = timearr.astype(int)
-    g_plot = rdf_c.T
-    fig, ax = plt.subplots(1, 1, figsize=(8,6))
-    img = ax.imshow(g_plot, vmin = 0, vmax = 10)
-    ax.set(xticks = np.linspace(0, g_plot.shape[1], 10), yticks = np.linspace(0, g_plot.shape[0], 10))
-    ax.set(xticklabels = timearr, yticklabels = np.linspace(0, rDisk, 10).astype(int))
-    ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = "rdf from center heatmap - Trajectories")
-    fig.colorbar(img, ax=ax)
-    ax.set_aspect(30)
-    if save_verb: plt.savefig(f"./{res_path}/radial_distribution_function/rdf_center_heatmap.png", bbox_inches='tight')
-    if show_verb: 
-        plt.show()
-    else:
-        plt.close()
+        if animated_plot_verb:
+            # Animated plot for trajs results
+            fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+            anim_running = True
+            def onClick(event):
+                global anim_running
+                if anim_running:
+                    ani.event_source.stop()
+                    anim_running = False
+                else:
+                    ani.event_source.start()
+                    anim_running = True
+            def animate(frame):
+                line.set_ydata(rdf[frame])  # update the data.
+                title.set_text(f'RDF - {system_name} {int(frame/fps)} s')
+                return line, 
+
+            line, = ax.plot(rList, rdf[0])
+            title = ax.set_title(f'RDF - {system_name} 0 s')
+            ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, rdf.shape[0], 10), interval=5, blit=False)
+            ax.set(ylim = (-0.5, 30), ylabel = "g(r)", xlabel = "r (px)", title = "Radial Distribution Function from center")
+            fig.canvas.mpl_connect('button_press_event', onClick)
+            if 0: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if 1:
+                plt.show()
+            else:
+                plt.close()
+
+            fig, ax = plt.subplots()
+            anim_running = True
+
+            def onClick(event):
+                global anim_running
+                if anim_running:
+                    ani.event_source.stop()
+                    anim_running = False
+                else:
+                    ani.event_source.start()
+                    anim_running = True
+
+            line, = ax.plot(rList, rdf_c[0])
+            title = ax.set_title(f'RDF from center - {system_name} 0 s')
+            ax.set_ylim(-1, 15)
+
+            def animate(frame):
+                line.set_ydata(rdf_c[frame])  # update the data.
+                title.set_text(f'RDF from center - {system_name} {int(frame/fps)} s')
+                return line, 
+
+            fig.canvas.mpl_connect('button_press_event', onClick)
+            ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, nFrames, fps), interval = 5, blit=False)
+            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_from_center.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if show_verb:
+                plt.show()
+            else:
+                plt.close()

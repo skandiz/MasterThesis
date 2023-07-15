@@ -158,7 +158,6 @@ def theta_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, tra
 def MB_2D(v, sigma):
     return v/(sigma**2) * np.exp(-v**2/(2*sigma**2))
 
-
 # Normal distribution
 def normal_distr(x, sigma, mu):
     return 1/(np.sqrt(2*np.pi)*sigma) * np.exp(-0.5*((x-mu)/sigma)**2)
