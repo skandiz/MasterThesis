@@ -9,6 +9,8 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import savgol_filter
 from scipy.optimize import curve_fit
 
+import pims
+
 import time
 import joblib
 from tqdm import tqdm
@@ -19,18 +21,25 @@ from yupi import Trajectory
 import yupi.graphics as yg
 import yupi.stats as ys
 
-show_verb = False
-run_windowed_analysis = False
-plot_verb = True
-animated_plot_verb = False
-save_verb = True
-run_analysis_verb = False
+from utility import get_imsd, get_imsd_windowed, get_emsd, get_emsd_windowed, fit_hist, MB_2D,\
+                    normal_distr, lorentzian_distr, get_trajs, speed_windowed, theta_windowed, \
+                    get_smooth_trajs, get_velocities
 
-msd_run = True
+show_verb = False
+run_windowed_analysis = True
+plot_verb = True
+animated_plot_verb = True
+save_verb = True
+run_analysis_verb = True
+
+msd_run = False
 speed_run = False
 turn_run = False
-autocorr_run = False
+autocorr_run = True
 rdf_run = False
+
+#video_selection = "25b25r"
+video_selection = "49b1r"
 
 #####################################################################################################################
 #                                                 DEFINE FUNCTIONS                                                  #
@@ -218,6 +227,10 @@ if 1:
         vacf_b_wind.columns = vacf_b_wind.columns.astype(str)
         vacf_b_std_wind.columns = vacf_b_std_wind.columns.astype(str)
         vacf_r_std_wind.columns = vacf_r_std_wind.columns.astype(str)
+        vacf_b_wind.to_parquet(f"./{analysis_data_path}/vacf/vacf_b_wind.parquet")
+        vacf_b_std_wind.to_parquet(f"./{analysis_data_path}/vacf/vacf_b_std_wind.parquet")
+        vacf_r_wind.to_parquet(f"./{analysis_data_path}/vacf/vacf_r_wind.parquet")
+        vacf_r_std_wind.to_parquet(f"./{analysis_data_path}/vacf/vacf_r_std_wind.parquet")
         return vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind
 
     @joblib.delayed
@@ -307,12 +320,17 @@ if 1:
 #############################################################################################################
 
 if 1: 
-    video_selection =  "25b25r"  # "49b1r" 
 
     if video_selection == "49b1r":
         print("Import data 49b_1r ...")
         system_name = "49b-1r system"
         ref = pims.open('../tracking/data/movie.mp4')
+        h = 920
+        w = 960
+        xmin = 55
+        ymin = 55
+        xmax = 880
+        ymax = 880
         data_path = "../tracking/49b_1r/49b_1r_pre_merge/df_linked.parquet"
         res_path = "./49b_1r/results"
         pdf_res_path = "../../thesis_project/images/49b_1r"
@@ -327,6 +345,12 @@ if 1:
         print("Import data 25b_25r ...")
         system_name = "25b-25r system"
         ref = pims.open('../tracking/data/25r25b-1.mp4')
+        h = 480
+        w = 640
+        xmin = 100
+        ymin = 35 
+        xmax = 530
+        ymax = 465
         data_path = "../tracking/25b_25r/df_linked.parquet"
         pdf_res_path = "../../thesis_project/images/25b_25r"
         res_path = "./25b_25r/results"
@@ -371,11 +395,6 @@ if 1:
     else:
         trajectories = original_trajectories
 
-    show_verb = False
-    run_windowed_analysis = True
-    plot_verb = True
-    animated_plot_verb = True
-    save_verb = True
 
 #############################################################################################################
 #                                              MSD ANALYSIS
@@ -960,26 +979,26 @@ if autocorr_run:
 
     if plot_verb:
     #Global Velocity Autocovariance
-    fig, (ax, ax1) = plt.subplots(2, 1, figsize=(10, 5))
-    ax.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b, fmt='o', markersize = 1, color = "blue", label = 'blue particles')
-    ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_b + vacf_std_b, vacf_b - vacf_std_b, alpha=1, edgecolor='#F0FFFF', facecolor='#00FFFF')
-    ax.grid()
-    ax.legend()
-    ax.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
-    ax1.errorbar(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r, fmt='o', markersize = 1, color = "red", label = 'red particles')
-    ax1.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), vacf_r + vacf_std_r, vacf_r - vacf_std_r, alpha=1, edgecolor='#FF0000', facecolor='#FF5A52')
-    ax1.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
-    ax1.grid()
-    ax1.legend()
-    plt.suptitle(f"Velocity autocorrelation function - {system_name}")
-    plt.tight_layout()
-    if save_verb: 
-        plt.savefig(f"./{res_path}/velocity_autocovariance/vacf.png", bbox_inches='tight')
-        plt.savefig(f"./{pdf_res_path}/velocity_autocovariance/vacf.pdf", bbox_inches='tight')
-    if show_verb: 
-        plt.show()
-    else:
-        plt.close()
+        fig, (ax, ax1) = plt.subplots(2, 1, figsize=(10, 5))
+        ax.errorbar(np.arange(0, maxLagtime/fps, 1/fps), vacf_b, fmt='o', markersize = 1, color = "blue", label = 'blue particles')
+        ax.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b + vacf_std_b, vacf_b - vacf_std_b, alpha=1, edgecolor='#F0FFFF', facecolor='#00FFFF')
+        ax.grid()
+        ax.legend()
+        ax.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
+        ax1.errorbar(np.arange(0, maxLagtime/fps, 1/fps), vacf_r, fmt='o', markersize = 1, color = "red", label = 'red particles')
+        ax1.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_r + vacf_std_r, vacf_r - vacf_std_r, alpha=1, edgecolor='#FF0000', facecolor='#FF5A52')
+        ax1.set(xlim = (-1, 10), xlabel = 'Lag time [s]', ylabel = r'VACF [$(px/s)^2$]')
+        ax1.grid()
+        ax1.legend()
+        plt.suptitle(f"Velocity autocorrelation function - {system_name}")
+        plt.tight_layout()
+        if save_verb: 
+            plt.savefig(f"./{res_path}/velocity_autocovariance/vacf.png", bbox_inches='tight')
+            plt.savefig(f"./{pdf_res_path}/velocity_autocovariance/vacf.pdf", bbox_inches='tight')
+        if show_verb: 
+            plt.show()
+        else:
+            plt.close()
 
     print("Windowed analysis")
     if run_windowed_analysis:
@@ -1047,7 +1066,6 @@ if autocorr_run:
 #                                      RADIAL DISTRIBUTION FUNCTION ANALYSIS
 #############################################################################################################
 if rdf_run:
-    run_analysis_verb = True
     dr = 5
     # center of petri dish --> to refine
     r_c = [ref[0].shape[0], ref[0].shape[1]] 
@@ -1055,10 +1073,10 @@ if rdf_run:
     rList = np.arange(0, 2*rDisk, 1)
     rho = nDrops/(np.pi*rDisk**2) # nDrops - 1 !???
 
-    print("RDF - {system_name}")
+    print(f"Radial Distributio Function - {system_name}")
     rdf = get_rdf(run_analysis_verb, nFrames, trajectories, rList, dr, rho)
 
-    print(f"RDF from center - {system_name}")
+    print(f"Radial Distributio Function from center - {system_name}")
     rdf_c = get_rdf_center(run_analysis_verb, nFrames, trajectories, r_c, rList, dr, rho)
 
     if plot_verb:
@@ -1072,7 +1090,7 @@ if rdf_run:
         ax.set(xticklabels = timearr, yticklabels = np.linspace(0, 2*rDisk, 10).astype(int))
         ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = "rdf heatmap")
         fig.colorbar(img, ax=ax)
-        ax.set_aspect(15)
+        ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f"./{res_path}/radial_distribution_function/rdf_heatmap.png", bbox_inches='tight')
             plt.savefig(f"./{pdf_res_path}/radial_distribution_function/rdf_heatmap.pdf", bbox_inches='tight')
@@ -1103,7 +1121,7 @@ if rdf_run:
         ax.set(xticklabels = timearr, yticklabels = np.linspace(0, rDisk, 10).astype(int))
         ax.set(xlabel = "Time [s]", ylabel = "r [px]", title = f"rdf from center heatmap - {system_name}")
         fig.colorbar(img, ax=ax)
-        ax.set_aspect(30)
+        ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f"./{res_path}/radial_distribution_function/rdf_center_heatmap.png", bbox_inches='tight')
             plt.savefig(f"./{pdf_res_path}/radial_distribution_function/rdf_center_heatmap.pdf", bbox_inches='tight')
@@ -1134,15 +1152,16 @@ if rdf_run:
             ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, rdf.shape[0], 10), interval=5, blit=False)
             ax.set(ylim = (-0.5, 30), ylabel = "g(r)", xlabel = "r (px)", title = "Radial Distribution Function from center")
             fig.canvas.mpl_connect('button_press_event', onClick)
-            if 0: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
-            if 1:
+            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if show_verb:
                 plt.show()
             else:
                 plt.close()
 
+
+
             fig, ax = plt.subplots()
             anim_running = True
-
             def onClick(event):
                 global anim_running
                 if anim_running:
@@ -1168,3 +1187,114 @@ if rdf_run:
                 plt.show()
             else:
                 plt.close()
+
+
+print(f"RDF - {system_name} v2")
+@joblib.delayed
+def rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r):
+    coords_blue = COORDS_blue[frame*n_blue:(frame+1)*n_blue, :]
+    coords_red = COORDS_red[frame*n_red:(frame+1)*n_red, :]
+    kd_blue = KDTree(coords_blue)
+    kd_red = KDTree(coords_red)
+
+    avg_b = np.zeros(len(rList))
+    avg_r = np.zeros(len(rList))
+    avg_br = np.zeros(len(rList))
+    avg_rb = np.zeros(len(rList))
+
+    for i, r in enumerate(rList):
+        # radial distribution function for blue particles
+        a = kd_blue.query_ball_point(coords_blue, r + dr)
+        b = kd_blue.query_ball_point(coords_blue, r)
+        avg_b[i] = (sum(len(j) - 1 for j in a) / len(a)) - (sum(len(j) - 1 for j in b) / len(b))
+
+        # radial distribution function for red particles
+        a = kd_red.query_ball_point(coords_red, r + dr)
+        b = kd_red.query_ball_point(coords_red, r)
+        avg_r[i] = (sum(len(j) - 1 for j in a) / len(a)) - (sum(len(j) - 1 for j in b) / len(b))
+
+        # radial distribution function for blue-red particles
+        a = kd_blue.query_ball_point(coords_red, r + dr)
+        b = kd_blue.query_ball_point(coords_red, r)
+        avg_br[i] = (sum(len(j) - 1 for j in a) / len(a)) - (sum(len(j) - 1 for j in b) / len(b))
+
+        # radial distribution function for red-blue particles
+        a = kd_red.query_ball_point(coords_blue, r + dr) 
+        b = kd_red.query_ball_point(coords_blue, r)
+        avg_rb[i] = (sum(len(j) - 1 for j in a) / len(a)) - (sum(len(j) - 1 for j in b) / len(b))
+
+    rdf_b = avg_b/(np.pi*(dr**2 + 2*rList*dr)*rho_b)
+    rdf_r = avg_r/(np.pi*(dr**2 + 2*rList*dr)*rho_r)
+    rdf_br = avg_br/(np.pi*(dr**2 + 2*rList*dr)*rho_b)
+    rdf_rb = avg_rb/(np.pi*(dr**2 + 2*rList*dr)*rho_r)
+    return rdf_b, rdf_r, rdf_br, rdf_rb
+
+def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red):
+    COORDS_blue = np.array(trajectories.loc[~trajectories.particle.isin(red_particle_idx), ["x","y"]])
+    COORDS_red = np.array(trajectories.loc[trajectories.particle.isin(red_particle_idx), ["x","y"]])
+    parallel = joblib.Parallel(n_jobs = -2)
+    rdf = parallel(
+        rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r)
+        for frame in tqdm(frames)
+    )
+    return np.array(rdf)
+
+run_analysis_verb = True
+
+n_red = len(red_particle_idx)
+n_blue = nDrops - n_red
+dr = trajectories.r.mean()
+# center of petri dish --> to refine
+r_c = [(xmax-xmin)+ xmin, (ymax-ymin)+ ymin]
+rDisk = (xmax-xmin)/2
+print(r_c, rDisk)
+rList = np.arange(0, 2*rDisk, 1)
+rho_b = n_blue/(np.pi*rDisk**2)
+rho_r = n_red/(np.pi*rDisk**2) 
+
+if run_analysis_verb:
+    rdf = get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red)
+    rdf_b  = rdf[:, 0, :]
+    rdf_r  = rdf[:, 1, :]
+    rdf_br = rdf[:, 2, :]
+    rdf_rb = rdf[:, 3, :]
+    rdf_b_df = pd.DataFrame(rdf_b)
+    rdf_r_df = pd.DataFrame(rdf_r)
+    rdf_br_df = pd.DataFrame(rdf_br)
+    rdf_rb_df = pd.DataFrame(rdf_rb)
+    # string columns for parquet filetype
+    rdf_b_df.columns = [f"{r}" for r in rList]
+    rdf_r_df.columns = [f"{r}" for r in rList]
+    rdf_br_df.columns = [f"{r}" for r in rList]
+    rdf_rb_df.columns = [f"{r}" for r in rList]
+
+    rdf_b_df.to_parquet(f"./{analysis_data_path}/rdf/rdf_b.parquet")
+    rdf_r_df.to_parquet(f"./{analysis_data_path}/rdf/rdf_r.parquet")
+    rdf_br_df.to_parquet(f"./{analysis_data_path}/rdf/rdf_br.parquet")
+    rdf_rb_df.to_parquet(f"./{analysis_data_path}/rdf/rdf_rb.parquet")
+elif not run_analysis_verb:
+    try:
+        rdf_b = np.array(pd.read_parquet(f"./{analysis_data_path}/rdf/rdf_b.parquet"))
+        rdf_r = np.array(pd.read_parquet(f"./{analysis_data_path}/rdf/rdf_r.parquet"))
+        rdf_br = np.array(pd.read_parquet(f"./{analysis_data_path}/rdf/rdf_br.parquet"))
+        rdf_rb = np.array(pd.read_parquet(f"./{analysis_data_path}/rdf/rdf_rb.parquet"))
+    except: 
+        raise ValueError("rdf data not found. Run analysis verbosely first.")
+else: 
+    raise ValueError("run_analysis_verb must be True or False")
+
+fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10,4))
+ax.plot(rList, rdf_b[0])
+ax1.plot(rList, rdf_r[0])
+ax.set_title("blue-blue")
+ax1.set_title("red-red")
+plt.savefig(f"./{pdf_res_path}/rdf_b-r.pdf")
+plt.show()
+
+fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10,4))
+ax.plot(rList, rdf_br[0])
+ax1.plot(rList, rdf_rb[0])
+ax.set_title("blue-red")
+ax1.set_title("red-blue")
+plt.savefig(f"./{pdf_res_path}/rdf_br-rb.pdf")
+plt.show()
