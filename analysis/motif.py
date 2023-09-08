@@ -1,9 +1,7 @@
-
 import matplotlib.pyplot as plt
 from matplotlib  import cm
 import matplotlib.animation
 import matplotlib.gridspec as gridspec
-plt.rcParams.update({'font.size': 8})
 
 import pims
 
@@ -40,6 +38,20 @@ from sklearn.preprocessing import StandardScaler
 
 import graph_tool.all as gt
 
+show_verb = False
+run_windowed_analysis = True
+plot_verb = True
+animated_plot_verb = True
+save_verb = True
+run_analysis_verb = True
+
+msd_run = False
+speed_run = False
+turn_run = False
+autocorr_run = True
+rdf_run = False
+
+
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 def compute_eccentricity(points):
@@ -50,216 +62,200 @@ def compute_eccentricity(points):
 
 def motif_search(mofitList, sizeList, g):
     counts = np.zeros(len(mofitList), dtype=int)
-    for i, mofit in enumerate(mofitList):
-        _, temp = gt.motifs(g, sizeList[i], motif_list=[mofit])
+    for i, motif in enumerate(mofitList):
+        _, temp = gt.motifs(g, sizeList[i], motif_list = [motif])
         counts[i] = temp[0]
     return counts
 
-print("Import data...")
-if 1:
+
+video_selection = "25b25r"
+#video_selection = "49b1r"
+
+if video_selection == "49b1r":
+    print("Import data 49b_1r ...")
+    system_name = "49b-1r system"
+    ref = pims.open('../tracking/data/49b1r.mp4')
+    h = 920
+    w = 960
+    xmin = 55
+    ymin = 55
+    xmax = 880
+    ymax = 880
     data_path = "../tracking/49b_1r/49b_1r_pre_merge/df_linked.parquet"
-    res_path = "./49b_1r/results" 
+    res_path = "./49b_1r/results"
+    pdf_res_path = "../../thesis_project/images/49b_1r"
     analysis_data_path = "./49b_1r/analysis_data"
-    red_particle_idx = 8
-    red_mask = np.zeros(50, dtype=bool)
-    red_mask[red_particle_idx] = True
-    colors = np.array(['b' for i in range(50)])
-    colors[red_particle_idx] = 'r'
+    
+    red_particle_idx = np.array([8]).astype(int)
     fps = 10
-else:
-    data_path = "../tracking/25b_25r/df_linked.parquet"
-    res_path = "./25b_25r/results" 
+    maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
+    v_step = fps
+
+elif video_selection == "25b25r":
+    print("Import data 25b_25r ...")
+    system_name = "25b-25r system"
+    ref = pims.open('../tracking/data/25b25r-1.mp4')
+    h = 480
+    w = 640
+    xmin = 100
+    ymin = 35 
+    xmax = 530
+    ymax = 465
+    data_path = "../tracking/25b_25r/part1/df_linked.parquet"
+    pdf_res_path = "../../thesis_project/images/25b_25r"
+    res_path = "./25b_25r/results"
     analysis_data_path = "./25b_25r/analysis_data"
     red_particle_idx = np.sort(np.array([27, 24, 8, 16, 21, 10, 49, 14, 12, 9, 7, 37, 36, 40, 45, 42, 13, 20, 26, 2, 39, 5, 11, 22, 44])).astype(int)
-    red_mask = np.zeros(50, dtype=bool)
-    red_mask[red_particle_idx] = True
-    colors = np.array(['b' for i in range(50)])
-    colors[red_particle_idx] = 'r'
     fps = 30
-
-rawTrajs = pd.read_parquet(data_path)
-nDrops = int(len(rawTrajs.loc[rawTrajs.frame==0]))
-frames = rawTrajs.frame.unique().astype(int)
+    maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds = 100 * fps
+    v_step = fps
+else:
+    raise ValueError("No valid video selection")
+    
+original_trajectories = pd.read_parquet(data_path)
+nDrops = int(len(original_trajectories.loc[original_trajectories.frame==0]))
+frames = original_trajectories.frame.unique().astype(int)
 nFrames = len(frames)
 print(f"Number of Droplets: {nDrops}")
 print(f"Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s")
 
+red_mask = np.zeros(nDrops, dtype=bool)
+red_mask[red_particle_idx] = True
+colors = np.array(['b' for i in range(nDrops)])
+colors[red_particle_idx] = 'r'
 
-sizeList = [3, 4, 5, 5]
-motifList = []
-for i in range(len(sizeList)):
-    motifList.append(gt.load_graph(f'{res_path}/graph/motif/selected/motif_{i}.graphml'))
+# ANALYSIS PARAMETERS
+pxDimension = 1 # has to be defined 
+x = np.arange(1, maxLagtime/fps + 1/fps, 1/fps) 
 
-factorList = np.round(np.arange(1.4, 3, 0.1),1)
-mean_d = 2*rawTrajs.groupby("frame").mean().r.values
-if 0:   
-    for factor in factorList:
-        motif_results = np.zeros((nFrames, len(motifList)), dtype=int)
-        for frame in tqdm(frames):
-            X = np.array(rawTrajs.loc[rawTrajs.frame == frame, ['x', 'y']])
-            g, pos = gt.geometric_graph(X, mean_d[frame]*factor)
-            motif_results[frame] = motif_search(motifList, sizeList, g)
-        df_motif = pd.DataFrame(motif_results, columns=[f'motif_{i}' for i in range(len(motifList))])
-        df_motif.to_parquet(f"{analysis_data_path}/graph/motif/motif_analysis_factor{factor}.parquet")
+# WINDOWED ANALYSIS PARAMETERS
+window = 300*fps # 320 s
+stride = 10*fps # 10 s
+print("Windowed analysis args:")
+startFrames = np.arange(0, nFrames-window, stride, dtype=int)
+endFrames = startFrames + window
+nSteps = len(startFrames)
+print(f"window of {window/fps} s, stride of {stride/fps} s --> {nSteps} steps")
+units = "px/s"
+default_kwargs_blue = {"color": "#00FFFF", "ec": (0, 0, 0, 0.6), "density": True}
+default_kwargs_red = {"color": "#EE4B2B", "ec": (0, 0, 0, 0.6), "density": True}
+
+if 1:
+    trajectories = get_smooth_trajs(original_trajectories, nDrops, int(fps/2), 4)
+else:
+    trajectories = original_trajectories
+
+
+factor = 2.2
+droplets_diameter = 2*trajectories.groupby("frame").r.mean()
+cutoff_distance = factor*droplets_diameter
 
 if 0:
-    for factor in factorList:
-        clust_id_list = []
-        for frame in tqdm(frames):
-            X = np.array(rawTrajs.loc[rawTrajs.frame == frame, ['x', 'y']])
-            dicts = {}
-            for j in range(len(X)):
-                dicts[j] = (X[j, 0], X[j, 1])
-            temp = nx.random_geometric_graph(len(dicts), mean_d[frame]*factor, pos=dicts, dim=2)
-            clust_id = np.ones(len(X), dtype=int)*-1
-            for id, c in enumerate(list(nx.connected_components(temp))):
-                clust_id[list(c)] = id
-            clust_id_list += list(clust_id)
-        clustered_trajs = rawTrajs.copy()
-        clustered_trajs["cluster_id"] = clust_id_list
-        clustered_trajs["cluster_color"] = [colors[i] for i in clust_id_list]
-        clustered_trajs.to_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
+    clust_id_list = []
+    for frame in tqdm(frames):
+        X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+        dicts = {}
+        for j in range(len(X)):
+            dicts[j] = (X[j, 0], X[j, 1])
+        temp = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos=dicts, dim=2)
+        clust_id = np.ones(len(X), dtype=int)*-1
+        for id, c in enumerate(list(nx.connected_components(temp))):
+            clust_id[list(c)] = id
+        clust_id_list += list(clust_id)
+    clustered_trajs = trajectories.copy()
+    clustered_trajs["cluster_id"] = clust_id_list
+    clustered_trajs["cluster_color"] = [colors[i] for i in clust_id_list]
+    clustered_trajs.to_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
+else:
+    clustered_trajs = pd.read_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
 
-verb_mean = False       
+if 0:
+    # CHOOSE MOTIFS TO SEARCH FOR BY HAND
+    for frame in np.random.choice(frames, 10):
+        X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+        g, pos = gt.geometric_graph(X, cutoff_distance[frame])
+        gt.graph_draw(g, pos=pos, output=f'{res_path}/graph/motif/search/graph_{frame}.png', vertex_size=10, vertex_pen_width=0.5, edge_pen_width=0.5, )
+
+        for n_vertices in range(3, 10):
+            motifs, counts = gt.motifs(g, n_vertices)
+            # print(motifs)
+            for i in range(len(motifs)):
+                gt.graph_draw(motifs[i], output=f'{res_path}/graph/motif/search/motif_{frame}_{n_vertices}_{i}.png', vertex_size=10, vertex_pen_width=0.5, edge_pen_width=0.5)
+            #print(counts)
+    # build by hand the motif list array:
+    motifList = []
+    # example
+    motifList.append(motif[1])
+    # write the sizes of the motifs in the sizeList array
+    sizeList = []
+    # save the motifList 
+    for i, motif in enumerate(motifList):
+        gt.graph_draw(motif, output=f'{res_path}/graph/motif_{i}.pdf', vertex_size=10)
+        motif.save(f'{res_path}/graph/motif_{i}.graphml')
+else:
+    sizeList = [3, 4, 5, 5]
+    motifList = []
+    for i in range(len(sizeList)):
+        motifList.append(gt.load_graph(f'{res_path}/graph/motif/selected/motif_{i}.graphml'))
+if 0:
+    motif_array = np.zeros((len(frames), len(motifList)+1), dtype=int)
+    for frame in tqdm(frames):
+        X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+        g, pos = gt.geometric_graph(X, cutoff_distance[frame])
+        motif_array[frame] = np.concatenate(([frame], list(motif_search(motifList, sizeList, g))))
+    motif_df = pd.DataFrame(motif_array, columns=["frame"] + [f"motif_{i}" for i in range(len(motifList))])
+    motif_df.to_parquet(f"{analysis_data_path}/graph/motifs_factor{factor}.parquet")
+
+verb_mean = True
 if 1:
-    for factor in factorList:
-        clustered_trajs = pd.read_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
-        if verb_mean:
-            if 1:
-                res = np.zeros((len(clustered_trajs.frame.unique()), 12))
-                for frame in tqdm(clustered_trajs.frame.unique()):
-                    df = clustered_trajs.loc[clustered_trajs.frame == frame]
-                    labels = df.cluster_id.values
-                    unique_labels, counts = np.unique(labels, return_counts=True)
-                    degree, degree_centrality, betweenness_centrality, clustering, dim_cycles, eccentricities, area = [], [], [], [], [], [], []
-                    first_eigenvalue, second_eigenvalue = [], []
-                    tot_n_cycles = 0
+    result = []
+    for frame in tqdm(clustered_trajs.frame.unique()):
+        df = clustered_trajs.loc[clustered_trajs.frame == frame]
+        labels = df.cluster_id.values
+        unique_labels, counts = np.unique(labels, return_counts=True)
 
-                    for j, cluster_id in enumerate(unique_labels[counts>2]):
-                        # create subgrah with positions of the agents in the cluster
-                        df_cluster = df.loc[df.cluster_id == cluster_id]
-                        X = np.array(df_cluster[['x', 'y']])
-                        dicts = {}
-                        for i in range(len(X)):
-                            dicts[i] = (X[i, 0], X[i, 1])
-                        temp = nx.random_geometric_graph(len(dicts), mean_d[frame]*factor, pos=dicts, dim=2)
+        for j, cluster_id in enumerate(unique_labels[counts>2]):
+            # create subgrah with positions of the agents in the cluster
+            df_cluster = df.loc[df.cluster_id == cluster_id]
+            X = np.array(df_cluster[['x', 'y']])
+            dicts = {}
+            for i in range(len(X)):
+                dicts[i] = (X[i, 0], X[i, 1])
+            temp = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos=dicts, dim=2)
 
-                        # compute area and eccentricity of the subgraph
-                        hull = ConvexHull(X)
-                        area.append(hull.area)
-                        eccentricities.append(compute_eccentricity(X))
+            # compute area and eccentricity of the subgraph
+            hull = ConvexHull(X)
+            area = hull.area
+            eccentricity = compute_eccentricity(X)
 
-                        # compute degree, degree centrality, betweenness centrality, clustering coefficient, number of cycles,
-                        # dimension of cycles and first and eigenvalue
-                        degree += [val for (_, val) in temp.degree()]
-                        degree_centrality += list(nx.degree_centrality(temp).values())
-                        betweenness_centrality += list(nx.betweenness_centrality(temp).values())
-                        clustering += list(nx.clustering(temp).values())
-                        cycles = nx.cycle_basis(temp)
-                        tot_n_cycles += int(len(cycles))
-                        dim_cycles += [len(cycles[i]) for i in range(int(len(cycles)))]
-                        lap_eigenvalues = nx.laplacian_spectrum(temp)
-                        first_eigenvalue.append(lap_eigenvalues[1])
-                        second_eigenvalue.append(lap_eigenvalues[2])
-
-                    mean_degree = np.mean(degree)
-                    mean_degree_centrality = np.mean(degree_centrality)
-                    mean_betweenness_centrality = np.mean(betweenness_centrality)
-                    mean_clustering = np.mean(clustering)
-                    if tot_n_cycles == 0:
-                        mean_dim_cycles = 0
-                    else:
-                        mean_dim_cycles = np.mean(dim_cycles)
-                    mean_area = np.mean(area)
-                    mean_eccentricity = np.mean(eccentricities)
-                    mean_first_eigenvalue = np.mean(first_eigenvalue)
-                    mean_second_eigenvalue = np.mean(second_eigenvalue)
-
-                    res[frame] = np.concatenate(([frame], [len(unique_labels[counts>2])], [tot_n_cycles], [mean_degree], [mean_degree_centrality],\
-                                                [mean_betweenness_centrality], [mean_clustering], [mean_dim_cycles], [mean_area], [mean_eccentricity],\
-                                                [mean_first_eigenvalue], [mean_second_eigenvalue]))
-
-                label = np.array(['frame', 'n_clusters', 'n_cycles', 'degree', 'degree_centrality', 'betweenness', 'clustering',\
-                        'd_cycles', 'area', 'eccentricity', 'first_eigv', 'second_eigv'])
-                df_graph = pd.DataFrame(res, columns=label)
-                df_graph.to_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
+            # compute degree, degree centrality, betweenness centrality, clustering coefficient, number of cycles,
+            # dimension of cycles and first and eigenvalue
+            degree = np.mean([val for (_, val) in temp.degree()])
+            degree_centrality = np.mean(list(nx.degree_centrality(temp).values()))
+            betweenness_centrality = np.mean(list(nx.betweenness_centrality(temp).values()))
+            clustering = np.mean(list(nx.clustering(temp).values()))
+            cycles = nx.cycle_basis(temp)
+            n_cycles = int(len(cycles))
+            dim_cycles = [len(cycles[i]) for i in range(int(len(cycles)))]
+            if n_cycles == 0:
+                mean_dim_cycles = 0
             else:
-                df_graph = pd.read_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
-                label = np.array(df_graph.columns.values, dtype=str)
-        else:
-            hist_bins_degree = np.arange(0, 30, 1)
-            hist_bins_01 = np.arange(0, 1.01, 0.05)
-            hist_bins_dim_cycles = np.arange(0, 51, 1)
-            area_bins = np.arange(100, 2100, 100)
+                mean_dim_cycles = np.mean(dim_cycles)
 
-            if 1:
-                res = np.zeros((len(clustered_trajs.frame.unique()), 201))
-                for frame in tqdm(clustered_trajs.frame.unique()):
-                    df = clustered_trajs.loc[clustered_trajs.frame == frame]
-                    labels = df.cluster_id.values
-                    unique_labels, counts = np.unique(labels, return_counts=True)
-                    degree, degree_centrality, betweenness_centrality, clustering, area, eccentricities, dim_cycles = [], [], [], [], [], [], []
-                    lap_eigenvalues = []
-                    tot_n_cycles = 0
+            # laplacian eigenvalues
+            lap_eigenvalues = nx.laplacian_spectrum(temp)
 
-                    for j, cluster_id in enumerate(unique_labels[counts>2]):
-                        df_cluster = df.loc[df.cluster_id == cluster_id]
-                        X = np.array(df_cluster[['x', 'y']])
-                        # create dictionary with positions of the agents
-                        dicts = {}
-                        for i in range(len(X)):
-                            dicts[i] = (X[i, 0], X[i, 1])
-                        temp = nx.random_geometric_graph(len(dicts), mean_d[frame]*factor, pos=dicts, dim=2)
+            # append to list
+            result.append(np.concatenate(([frame], [len(unique_labels[counts>2])], [n_cycles], [degree], [degree_centrality],\
+                                    [betweenness_centrality], [clustering], [mean_dim_cycles], [area], [eccentricity],\
+                                    [lap_eigenvalues[1]], [lap_eigenvalues[2]])))
 
-                        # compute area and eccentricity of the subgraph
-                        hull = ConvexHull(X)
-                        area.append(hull.area)
-                        eccentricities.append(compute_eccentricity(X))
-                        
-                        degree += [val for (_, val) in temp.degree()]
-                        degree_centrality += list(nx.degree_centrality(temp).values())
-                        betweenness_centrality += list(nx.betweenness_centrality(temp).values())
-                        clustering += list(nx.clustering(temp).values())
-
-                        cycles = nx.cycle_basis(temp)
-                        tot_n_cycles += int(len(cycles))
-                        dim_cycles += [len(cycles[i]) for i in range(int(len(cycles)))]
-                        lap_eigenvalues += list(nx.laplacian_spectrum(temp))
-                
-                    degree_count,             _ = np.histogram(degree, bins=hist_bins_degree)
-                    centrality_count,         _ = np.histogram(degree_centrality, bins=hist_bins_01) 
-                    betweenness_count,        _ = np.histogram(betweenness_centrality, bins=hist_bins_01)
-                    clustering_count,         _ = np.histogram(clustering, bins=hist_bins_01)
-                    dim_cycles_count,         _ = np.histogram(dim_cycles, bins=hist_bins_dim_cycles)
-                    area,                     _ = np.histogram(area, bins=area_bins)
-                    eccentricity,             _ = np.histogram(eccentricities, bins=hist_bins_01)
-                    laplacian_spectrum_count, _ = np.histogram(lap_eigenvalues, bins=hist_bins_01)
-                    
-                    res[frame] =  np.concatenate(([frame], [len(unique_labels[counts>2])], [tot_n_cycles], degree_count, centrality_count,\
-                                                betweenness_count, clustering_count, dim_cycles_count, area, eccentricity,\
-                                                laplacian_spectrum_count))
-                label = np.array(['frame'] + ['nClusters'] + ['nCycles'] + [f'degree_{i}' for i in range(len(hist_bins_degree[1:]))] + \
-                        [f'centrality_{i}' for i in range(len(hist_bins_01[1:]))] + [f'betweenness_{i}' for i in range(len(hist_bins_01[1:]))] + \
-                        [f'clustering_{i}' for i in range(len(hist_bins_01[1:]))] + [f'dim_cycles_{i}' for i in range(len(hist_bins_dim_cycles[1:]))] +\
-                        [f'area_{i}' for i in range(len(area_bins[1:]))] + [f'eccentricity_{i}' for i in range(len(hist_bins_01[1:]))] +\
-                        [f'laplacian_{i}'for i in range(len(hist_bins_01[1:]))])
-                df_graph = pd.DataFrame(res, columns=label)
-                df_graph.to_parquet(f'{analysis_data_path}/graph/graph_analysis_factor{factor}.parquet')
-            else:
-                df_graph = pd.read_parquet(f'{analysis_data_path}/graph/graph_analysis_factor{factor}.parquet')
-                label = np.array(df_graph.columns.values, dtype=str)
-                display(df_graph)
-
-            # how to index the array
-            id_nClusters = np.argwhere(np.char.startswith(label, 'nClusters')==True)[0][0]
-            id_nCycles = np.argwhere(np.char.startswith(label, 'nCycles')==True)[0][0]
-            id_degree = np.argwhere(np.char.startswith(label, 'degree')==True)[0][0], np.argwhere(np.char.startswith(label, 'degree')==True)[-1][0]
-            id_centrality = np.argwhere(np.char.startswith(label, 'centrality')==True)[0][0], np.argwhere(np.char.startswith(label, 'centrality')==True)[-1][0]
-            id_betweenness = np.argwhere(np.char.startswith(label, 'betweenness')==True)[0][0], np.argwhere(np.char.startswith(label, 'betweenness')==True)[-1][0]
-            id_clustering = np.argwhere(np.char.startswith(label, 'clustering')==True)[0][0], np.argwhere(np.char.startswith(label, 'clustering')==True)[-1][0]
-            id_dim_cycles = np.argwhere(np.char.startswith(label, 'dim_cycles')==True)[0][0], np.argwhere(np.char.startswith(label, 'dim_cycles')==True)[-1][0]
-            id_area = np.argwhere(np.char.startswith(label, 'area')==True)[0][0], np.argwhere(np.char.startswith(label, 'area')==True)[-1][0]
-            id_eccentricity = np.argwhere(np.char.startswith(label, 'eccentricity')==True)[0][0], np.argwhere(np.char.startswith(label, 'eccentricity')==True)[-1][0]
-            id_laplacian = np.argwhere(np.char.startswith(label, 'laplacian')==True)[0][0], np.argwhere(np.char.startswith(label, 'laplacian')==True)[-1][0]
-
-
+    label = np.array(['frame', 'n_clusters', 'n_cycles', 'degree', 'degree_centrality', 'betweenness', 'clustering',\
+            'd_cycles', 'area', 'eccentricity', 'first_lapl_eigv', 'second_lapl_eigv'])
+    df_graph = pd.DataFrame(result, columns=label)
+    display(df_graph)
+    df_graph.to_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
+else:
+    print(f"Import data with factor {factor}")
+    df_graph = pd.read_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
+    label = np.array(df_graph.columns)
