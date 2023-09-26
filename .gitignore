@@ -24,3 +24,4 @@ analysis/25b_25r/analysis_data/*
 analysis/25b_25r/results/graph/motif/*
 analysis/49b_1r/results/graph/motif/*
 .vscode/*
+analysis/figures.ipynb
