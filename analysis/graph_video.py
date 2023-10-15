@@ -20,9 +20,9 @@ def get_frame(frame):
     return frameImg
 
 print("Import data...")
-if 0:
-    data_path = "../tracking/49b_1r/49b_1r_pre_merge/df_linked.parquet"
-    tracking_path = "../tracking/49b_1r/49b_1r_pre_merge"
+if 1:
+    data_path = "../tracking/49b_1r/part1/df_linked.parquet"
+    tracking_path = "../tracking/49b_1r/part1"
     res_path = "./49b_1r/results" 
     analysis_data_path = "./49b_1r/analysis_data"
     red_particle_idx = 8
@@ -82,12 +82,10 @@ if 0:
     plt.close()
 
 if 1:
-    factor = 2.2
+    factor = 1.5
     mean_d = 2*trajectories.groupby("frame").mean().r.values
 
-    
-
-    if 1:
+    if 0:
         clust_id_list = []
         random_geometric_graphs = []
         for frame in tqdm(frames):

@@ -3,7 +3,6 @@ import matplotlib.gridspec as gridspec
 import matplotlib.animation
 import matplotlib as mpl
 font = {'size'   : 12}
-
 mpl.rc('font', **font)
 
 import numpy as np
@@ -361,3 +360,317 @@ def get_rdf_center(frames, trajectories, r_c, rList, dr, rho):
     )
     rdf_c = np.array(rdf_c)
     return rdf_c
+
+video_selection = "25b25r"
+#video_selection = "49b1r"
+
+
+if video_selection == "49b1r":
+    print("Import data 49b_1r ...")
+    system_name = "49b-1r system"
+    ref = pims.open('../tracking/data/49b1r.mp4')
+    h = 920
+    w = 960
+    xmin = 55
+    ymin = 55
+    xmax = 880
+    ymax = 880
+    pxDimension = 90/875 # 90 mm / 875 mm = 0.10285714285714285 mm/mm
+    data_preload_path = f'/Volumes/ExtremeSSD/UNI/h5_data_thesis/49b-1r/part1.h5'
+
+    data_path = "../tracking/49b_1r/49b_1r_pre_merge/df_linked.parquet"
+    res_path = "./49b_1r/results"
+    pdf_res_path = "../../thesis_project/images/49b_1r"
+    analysis_data_path = "./49b_1r/analysis_data"
+    
+    red_particle_idx = np.array([8]).astype(int)
+    fps = 10
+    maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds
+
+elif video_selection == "25b25r":
+    print("Import data 25b_25r ...")
+    system_name = "25b-25r system"
+    ref = pims.open('../tracking/data/25b25r-1.mp4')
+    h = 480
+    w = 640
+    xmin = 100
+    ymin = 35 
+    xmax = 530
+    ymax = 465
+    pxDimension = 90/435 # 90 mm / 435 mm = 0.20689655172413793 mm/mm
+    data_preload_path = f'/Volumes/ExtremeSSD/UNI/h5_data_thesis/25b-25r/part1.h5'
+    data_path = "../tracking/25b_25r/part1/df_linked.parquet"
+    pdf_res_path = "../../thesis_project/images/25b_25r"
+    res_path = "./25b_25r/results"
+    analysis_data_path = "./25b_25r/analysis_data"
+    red_particle_idx = np.sort(np.array([27, 24, 8, 16, 21, 10, 49, 14, 12, 9, 7, 37, 36, 40, 45, 42, 13, 20, 26, 2, 39, 5, 11, 22, 44])).astype(int)
+    fps = 30
+    maxLagtime = 100*fps # maximum lagtime to be considered in the analysis, 100 seconds = 100 * fps
+else:
+    raise ValueError("No valid video selection")
+    
+original_trajectories = pd.read_parquet(data_path)
+# set radius in mm
+original_trajectories.r = original_trajectories.r * pxDimension
+nDrops = int(len(original_trajectories.loc[original_trajectories.frame==0]))
+frames = original_trajectories.frame.unique().astype(int)
+nFrames = len(frames)
+print(f"Number of Droplets: {nDrops}")
+print(f"Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s")
+
+red_mask = np.zeros(nDrops, dtype=bool)
+red_mask[red_particle_idx] = True
+colors = np.array(['b' for i in range(nDrops)])
+colors[red_particle_idx] = 'r'
+
+# ANALYSIS PARAMETERS
+
+x_diffusive = np.linspace(1, maxLagtime/fps, int((maxLagtime/fps + 1/fps - 1)*fps)) 
+x_ballistic = np.linspace(1/fps, 1, int((1-1/fps)*fps)+1)
+
+# WINDOWED ANALYSIS PARAMETERS
+window = 300*fps # 320 s
+stride = 10*fps # 10 s
+print("Windowed analysis args:")
+startFrames = np.arange(0, nFrames-window, stride, dtype=int)
+endFrames = startFrames + window
+nSteps = len(startFrames)
+print(f"window of {window/fps} s, stride of {stride/fps} s --> {nSteps} steps")
+
+speed_units = "mm/s"
+dimension_units = "mm"
+default_kwargs_blue = {"color": "#00FFFF", "ec": (0, 0, 0, 0.6), "density": True}
+default_kwargs_red = {"color": "#EE4B2B", "ec": (0, 0, 0, 0.6), "density": True}
+
+if 1:
+    trajectories = get_smooth_trajs(original_trajectories, nDrops, int(fps/2), 4)
+else:
+    trajectories = original_trajectories
+
+factors = np.linspace(.5, 3, 20)
+n_conn_components = np.zeros(len(factors))
+for id, factor in enumerate(factors):
+    cutoff_distance = factor * 2 * np.mean(trajectories.r.values.reshape(nFrames, nDrops), axis = 1)/pxDimension
+    frame = 1500 * fps
+    X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+    # create dictionary with positions of the agents
+    dicts = {}
+    for i in range(len(X)):
+        dicts[i] = (X[i, 0], X[i, 1])
+    # generate random geometric graph with cutoff distance 2.2 times the mean diameter the droplets have at that frame
+    G = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos = dicts, dim = 2)
+    n_conn_components[id] = nx.number_connected_components(G)
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(factors, n_conn_components)
+ax.set(xlabel = "Factor", ylabel = "Number of connected components", title = f"Number of connected components vs cutoff factor")
+ax.grid(linewidth = 0.2)
+ax.axvline(x = 1.5, color = 'r', linestyle = '--')
+plt.savefig(f"./{pdf_res_path}/connected_components.pdf", bbox_inches='tight')
+plt.close()
+
+factor = 1.5
+cutoff_distance = factor * 2 * np.mean(trajectories.r.values.reshape(nFrames, nDrops), axis = 1)/pxDimension
+
+frame = 1500 * fps
+X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+# create dictionary with positions of the agents
+dicts = {}
+for i in range(len(X)):
+    dicts[i] = (X[i, 0], X[i, 1])
+# generate random geometric graph with cutoff distance 2.2 times the mean diameter the droplets have at that frame
+G = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos = dicts, dim = 2)
+node_pos = nx.get_node_attributes(G, 'pos')
+vor = Voronoi(np.asarray(list(node_pos.values())))
+
+fig, ax = plt.subplots(figsize=(6, 6))
+voronoi_plot_2d(vor, ax = ax, show_vertices = False, line_colors = 'orange', line_width = 2, line_alpha = 0.6, point_size = 2)
+nx.draw(G, pos = node_pos, node_size = 25, node_color = colors, with_labels = False, ax=ax)
+ax.set(xlim = (xmin, xmax), ylim = (ymax, ymin), title = f"Random Geometric Graph at {int(frame/fps)} s -- {system_name}", xlabel="x [px]", ylabel="y [px]")
+if save_verb:
+    plt.savefig(f"./{res_path}/graph/random_geometric_graph_{factor}.png", bbox_inches='tight')
+    plt.savefig(f"./{pdf_res_path}/graph/random_geometric_graph_{factor}.pdf", bbox_inches='tight')
+if show_verb:
+    plt.show()
+else:
+    plt.close()
+
+if 0:
+    clust_id_list = []
+    for frame in tqdm(frames):
+        X = np.array(trajectories.loc[trajectories.frame == frame, ['x', 'y']])
+        dicts = {}
+        for j in range(len(X)):
+            dicts[j] = (X[j, 0], X[j, 1])
+        temp = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos=dicts, dim=2)
+        clust_id = np.ones(len(X), dtype=int)*-1
+        for id, c in enumerate(list(nx.connected_components(temp))):
+            clust_id[list(c)] = id
+        clust_id_list += list(clust_id)
+    clustered_trajs = trajectories.copy()
+    clustered_trajs["cluster_id"] = clust_id_list
+    clustered_trajs["cluster_color"] = [colors[i] for i in clust_id_list]
+    clustered_trajs.to_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
+else:
+    clustered_trajs = pd.read_parquet(f"{analysis_data_path}/clustering/trajs_simple_connections_factor{factor}.parquet")
+
+if 1:
+    result = []
+    for frame in tqdm(frames):
+        df = clustered_trajs.loc[clustered_trajs.frame == frame]
+        labels = df.cluster_id.values
+        unique_labels, counts = np.unique(labels, return_counts=True)
+
+        for j, cluster_id in enumerate(unique_labels[counts>2]):
+            # create subgrah with positions of the agents in the cluster
+            df_cluster = df.loc[df.cluster_id == cluster_id]
+            X = np.array(df_cluster[['x', 'y']])
+            dicts = {}
+            for i in range(len(X)):
+                dicts[i] = (X[i, 0], X[i, 1])
+            temp = nx.random_geometric_graph(len(dicts), cutoff_distance[frame], pos=dicts, dim=2)
+
+            # compute area and eccentricity of the subgraph
+            hull = ConvexHull(X)
+            area = hull.area
+            eccentricity = compute_eccentricity(X)
+
+            # compute degree, degree centrality, betweenness centrality, clustering coefficient, number of cycles,
+            # dimension of cycles and first and eigenvalue
+            degree = np.mean([val for (_, val) in temp.degree()])
+            degree_centrality = np.mean(list(nx.degree_centrality(temp).values()))
+            betweenness_centrality = np.mean(list(nx.betweenness_centrality(temp).values()))
+            clustering = np.mean(list(nx.clustering(temp).values()))
+            cycles = nx.cycle_basis(temp)
+            n_cycles = int(len(cycles))
+            dim_cycles = [len(cycles[i]) for i in range(int(len(cycles)))]
+            if n_cycles == 0:
+                mean_dim_cycles = 0
+            else:
+                mean_dim_cycles = np.mean(dim_cycles)
+
+            # laplacian eigenvalues
+            lap_eigenvalues = nx.laplacian_spectrum(temp)
+
+            # append to list
+            result.append(np.concatenate(([frame], [len(unique_labels[counts>2])], [n_cycles], [degree], [degree_centrality],\
+                                    [betweenness_centrality], [clustering], [mean_dim_cycles], [area], [eccentricity],\
+                                    [lap_eigenvalues[1]], [lap_eigenvalues[2]])))
+
+    label = np.array(['frame', 'n_clusters', 'n_cycles', 'degree', 'degree_centrality', 'betweenness', 'clustering',\
+            'd_cycles', 'area', 'eccentricity', 'first_lapl_eigv', 'second_lapl_eigv'])
+    df_graph = pd.DataFrame(result, columns=label)
+    df_graph.to_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
+else:
+    print(f"Import data with factor {factor}")
+    df_graph = pd.read_parquet(f"{analysis_data_path}/graph/graph_analysis_mean_factor{factor}.parquet")
+    label = np.array(df_graph.columns)
+
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+ax.plot(df_graph.frame.unique()/fps, df_graph.groupby("frame").n_clusters.mean())
+ax.set(xlabel="Time [s]", ylabel="n_clusters", title=f"Number of clusters - {system_name}")
+ax.grid(linewidth=0.2)
+if save_verb:
+    plt.savefig(f"./{res_path}/graph/n_clusters.png", bbox_inches='tight')
+    plt.savefig(f"./{pdf_res_path}/graph/n_clusters.pdf", bbox_inches='tight')
+if show_verb:
+    plt.show()
+else:
+    plt.close()
+
+x = df_graph.iloc[:, 1:].values # to skip the frame column
+x = StandardScaler().fit_transform(x) # normalizing the features
+x = x/np.std(x)
+print(x.shape, np.mean(x), np.std(x))
+normalized_df = pd.DataFrame(x, columns=label[1:])
+
+# explained variance ratio with PCA
+pca = PCA(n_components=label.shape[0]-2)
+p_components = pca.fit_transform(x)
+fig, ax = plt.subplots(1, 1, figsize = (6, 3))
+ax.plot(np.arange(1, p_components.shape[1]+1, 1), pca.explained_variance_ratio_.cumsum())
+ax.set(xlabel = 'N of components', ylabel = f'Cumulative explained variance ratio', title = f'PCA scree plot - {system_name}') 
+ax.grid(linewidth = 0.2)
+if save_verb:
+    plt.savefig(f'{res_path}/graph/scree_plot.png', bbox_inches='tight')
+    plt.savefig(f'{pdf_res_path}/graph/scree_plot.pdf', bbox_inches='tight')
+if show_verb:
+    plt.show()
+else:
+    plt.close()
+
+pca = PCA(n_components=3)
+p_components = pca.fit_transform(x)
+expl_variance_ratio = np.round(pca.explained_variance_ratio_, 2)
+print('Explained variation per principal component: {}'.format(expl_variance_ratio))
+principal_df = pd.DataFrame(data = p_components, columns = ['pc1', 'pc2', 'pc3'])
+principal_df['frame'] = df_graph.frame.values.astype(int)
+
+
+fig, axs = plt.subplots(1, 3, figsize = (12, 4))
+scatt = axs[0].scatter(principal_df.pc1, principal_df.pc2, c = principal_df.frame, cmap='viridis', s=10)
+axs[0].set(xlabel = f'PC1 ({expl_variance_ratio[0]})', ylabel = f'PC2 ({expl_variance_ratio[1]})')
+axs[1].scatter(principal_df.pc2, principal_df.pc3, c=principal_df.frame, cmap='viridis', s=10)
+axs[1].set(xlabel = f'PC2 ({expl_variance_ratio[1]})', ylabel = f'PC3 ({expl_variance_ratio[2]})')
+axs[2].scatter(principal_df.pc1, principal_df.pc3, c=principal_df.frame, cmap='viridis', s=10)
+axs[2].set(xlabel = f'PC1 ({expl_variance_ratio[0]})', ylabel = f'PC3 ({expl_variance_ratio[2]})')
+plt.suptitle(f'PCA projections - {system_name}')
+axs[0].grid()
+axs[1].grid()
+axs[2].grid()
+#fig.colorbar(scatt, ax=axs, label='frame', orientation='horizontal', shrink=0.5)
+plt.tight_layout()
+if save_verb:
+    plt.savefig(f'{res_path}/graph/pca.png', bbox_inches='tight')
+    plt.savefig(f'{pdf_res_path}/graph/pca.png', bbox_inches='tight', dpi = 500)
+if show_verb:
+    plt.show()
+else:
+    plt.close()
+
+loadings = pca.components_
+
+fig, (ax, ax1, ax2) = plt.subplots(3, 1, figsize = (10, 6), sharex=True, sharey=True)
+ax.plot(loadings[0], 'r', label = 'PC1')
+ax1.plot(loadings[1], 'b', label = 'PC2')
+ax2.plot(loadings[2], 'y', label = 'PC3')
+ax.set(ylabel = 'PC1', title = f'PCA components - {system_name}', ylim=(-1, 1))
+ax1.set(ylabel = 'PC2', ylim=(-1,1))
+ax2.set(ylabel = 'PC3', xlabel = 'features', ylim=(-1,1), xticks = np.arange(loadings.shape[1]))
+ax2.set_xticklabels(df_graph.columns[1:], rotation = 45)
+ax.grid(linewidth = 0.5)
+ax1.grid(linewidth = 0.5)
+ax2.grid(linewidth = 0.5)
+fig.tight_layout()
+if save_verb:
+    plt.savefig(f'{res_path}/graph/pca_components.png', bbox_inches='tight')
+    plt.savefig(f'{pdf_res_path}/graph/pca_components.pdf', bbox_inches='tight')
+if show_verb:
+    plt.show()
+else:
+    plt.close()
+
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(projection='3d')
+scatterplot = ax.scatter(principal_df.pc1, principal_df.pc2, principal_df.pc3, c = principal_df.frame, cmap = 'viridis', s = 1, rasterized=True)
+ax.grid(linewidth = 0.2)
+fig.colorbar(scatterplot, ax=ax, shrink=0.6, label = 'frame', orientation = 'horizontal')
+ax.set(xlabel = f'PC1 ({expl_variance_ratio[0]})', ylabel = f'PC2 ({expl_variance_ratio[1]})', zlabel = f'PC3 ({expl_variance_ratio[2]})')
+if 0:
+    # save to gif
+    import imageio
+    images = []
+    for n in range(0, 250):
+        if n >= 5:
+            ax.azim = ax.azim+1.1
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+        images.append(image.reshape(1000, 1000, 3)) ## 
+    imageio.mimsave(f'{res_path}/graph/pca.gif', images)
+if save_verb:
+    plt.savefig(f'{res_path}/graph/pca_3d.png', bbox_inches='tight')
+    plt.savefig(f'{pdf_res_path}/graph/pca_3d.png', bbox_inches='tight', dpi = 500)
+if show_verb:
+    plt.show()
+else:
+    plt.close()
