@@ -12,6 +12,7 @@ import pims
 from scipy.signal import savgol_filter
 from PIL import Image, ImageDraw
 import cv2
+from tqdm import tqdm
 
 def get_data_preload(startFrame, endFrame, data_preload_path, dataset_name):
     with h5py.File(data_preload_path, 'r') as f:
@@ -151,7 +152,11 @@ if 1:
 else:
     trajectories = original_trajectories
 
-data  = preprocessing(ref, w, h, xmin, ymin, xmax, ymax) 
+data = preprocessing(ref, w, h, xmin, ymin, xmax, ymax)
+ 
+#data_preload = []
+#for i in tqdm(range(nFrames)):
+#    data_preload.append(data[i])
 
 fig = plt.figure(figsize = (8, 8))
 def update_graph(frame):
@@ -160,11 +165,11 @@ def update_graph(frame):
         graph[i].center = (df.x.values[i], df.y.values[i])
         graph[i].radius = df.r.values[i]/pxDimension
     graph2.set_data(data[frame])
-    title.set_text(f'49b1r system tracking -- frame = {frame}')
+    title.set_text(f'{system_name} Tracking -- t = {round(frame/fps, 2)} s')
     return graph
 
 ax = fig.add_subplot(111)
-title = ax.set_title(f'49b1r system tracking -- frame = {0}')
+title = ax.set_title(f'{system_name} Tracking -- t = {0} s')
 ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
 df = trajectories.loc[(trajectories.frame == 0), ["x", "y", "color", "r"]]
 
@@ -174,8 +179,7 @@ for i in range(len(df)):
                                            fill = False, linewidth=1)))
 graph2 = ax.imshow(data[0])
 
-ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(0, int(max(trajectories.frame)), 1), interval = 5, blit=False)
-#ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(0, 100, 1), interval = 5, blit=False)
+ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames, interval = 5, blit=False)
 writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
-ani.save(f'./{data_path}/video.mp4', writer=writer, dpi = 300)
+ani.save(f'./{data_path}/tracking_video.mp4', writer=writer, dpi = 200)
 plt.close()

@@ -3,6 +3,8 @@ import matplotlib.animation
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import h5py 
+font = {'size'   : 12}
+mpl.rc('font', **font)
 mpl.rc('image', cmap='gray')
 
 import numpy as np
@@ -11,6 +13,7 @@ from tqdm import tqdm
 from networkx.algorithms.community import greedy_modularity_communities
 import networkx as nx 
 import random
+import pims
 
 def get_frame(frame):
     with h5py.File(data_preload_path, 'r') as f:
@@ -20,9 +23,17 @@ def get_frame(frame):
     return frameImg
 
 print("Import data...")
-if 1:
+
+#video_selection = "25b25r"
+video_selection = "49b1r"
+
+if video_selection == "49b1r":
+    print("Import data 49b_1r ...")
+    part = 1
+    system_name = "49b-1r system"
     data_path = "../tracking/49b_1r/part1/df_linked.parquet"
-    tracking_path = "../tracking/49b_1r/part1"
+    tracking_path = f"../tracking/49b_1r/part{part}"
+    ref = pims.open('../tracking/data/49b1r.mp4')
     res_path = "./49b_1r/results" 
     analysis_data_path = "./49b_1r/analysis_data"
     red_particle_idx = 8
@@ -32,8 +43,10 @@ if 1:
     xmax = 880
     ymin = 55
     ymax = 880
-else:
+
+elif video_selection == "25b25r":
     part = 1
+    system_name = "25b-25r system"
     data_path = f"../tracking/25b_25r/part{part}/df_linked.parquet"
     tracking_path = f"../tracking/25b_25r/part{part}/"
     data_preload_path = '/Volumes/ExtremeSSD/UNI/h5_data_thesis/data.h5'
@@ -56,36 +69,62 @@ nFrames = len(frames)
 print(f"Number of Droplets: {nDrops}")
 print(f"Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s")
 
-if 0:
-    fig = plt.figure(figsize = (5, 5))
-    def update_graph(frame):
-        df = trajectories.loc[(trajectories.frame == frame) , ["x", "y", "color", "r"]]
-        for i in range(50):
-            graph[i].center = (df.x.values[i], df.y.values[i])
-            graph[i].radius = df.r.values[i]
-        graph2.set_data(get_frame(frame))
-        title.set_text('Tracking raw - frame = {}'.format(frame))
-        return graph
-
-    ax = fig.add_subplot(111)
-    title = ax.set_title('Tracking stardist + trackpy - frame = 0')
-    ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
-    df = trajectories.loc[(trajectories.frame == 0), ["x", "y", "color", "r"]]
-    graph = []
-    for i in range(50):
-        graph.append(ax.add_artist(plt.Circle((df.x.values[i], df.y.values[i]), df.r.values[i], color = df.color.values[i],\
-                                               fill = False, linewidth=1)))
-    graph2 = ax.imshow(get_frame(0))
-    ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames, interval = 5, blit=False)
-    writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
-    ani.save(tracking_path + 'tracking_stardist.mp4', writer=writer, dpi = 300)
-    plt.close()
-
 if 1:
+    if video_selection == "25b25r":
+        fig = plt.figure(figsize = (5, 5))
+        def update_graph(frame):
+            df = trajectories.loc[(trajectories.frame == frame) , ["x", "y", "color", "r"]]
+            for i in range(50):
+                graph[i].center = (df.x.values[i], df.y.values[i])
+                graph[i].radius = df.r.values[i]
+            graph2.set_data(get_frame(frame))
+            title.set_text('Tracking raw - frame = {}'.format(frame))
+            return graph
+
+        ax = fig.add_subplot(111)
+        title = ax.set_title('Tracking stardist + trackpy - frame = 0')
+        ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
+        df = trajectories.loc[(trajectories.frame == 0), ["x", "y", "color", "r"]]
+        graph = []
+        for i in range(50):
+            graph.append(ax.add_artist(plt.Circle((df.x.values[i], df.y.values[i]), df.r.values[i], color = df.color.values[i],\
+                                                   fill = False, linewidth=1)))
+        graph2 = ax.imshow(get_frame(0))
+        ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames, interval = 5, blit=False)
+        writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
+        ani.save(tracking_path + '/tracking_stardist.mp4', writer=writer, dpi = 200)
+        plt.close()
+
+    elif video_selection == "49b1r":
+        print("49b1r video")
+        fig = plt.figure(figsize = (5, 5))
+        def update_graph(frame):
+            df = trajectories.loc[(trajectories.frame == frame) , ["x", "y", "color", "r"]]
+            for i in range(50):
+                graph[i].center = (df.x.values[i], df.y.values[i])
+                graph[i].radius = df.r.values[i]
+            graph2.set_data(ref[frame])
+            title.set_text(f'Tracking {system_name} - frame = {frame} -- ({round(frame/fps, 2)} s)')
+            return graph
+
+        ax = fig.add_subplot(111)
+        title = ax.set_title(f'Tracking {system_name} - frame = 0 -- ({0} s)')
+        ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
+        df = trajectories.loc[(trajectories.frame == 0), ["x", "y", "color", "r"]]
+        graph = []
+        for i in range(50):
+            graph.append(ax.add_artist(plt.Circle((df.x.values[i], df.y.values[i]), df.r.values[i], color = df.color.values[i],\
+                                                   fill = False, linewidth=1)))
+        graph2 = ax.imshow(ref[0])
+        ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames, interval = 5, blit=False)
+        writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
+        ani.save(tracking_path + '/tracking_stardist.mp4', writer=writer, dpi = 200)
+        plt.close()
+if 0:
     factor = 1.5
     mean_d = 2*trajectories.groupby("frame").mean().r.values
 
-    if 0:
+    if 1:
         clust_id_list = []
         random_geometric_graphs = []
         for frame in tqdm(frames):
@@ -114,15 +153,20 @@ if 1:
         ax.clear()
         nx.draw_networkx(random_geometric_graphs[frame], pos=nx.get_node_attributes(random_geometric_graphs[frame], 'pos'),\
                              node_size = 50, node_color = node_colors[frame], ax = ax, with_labels=False)
-        ax.set(xlim=(xmin, xmax), ylim=(ymax, ymin), title=f"frame {frame}", xlabel="x [px]", ylabel="y [px]")
+        ax.set(xlim=(xmin, xmax), ylim=(ymax, ymin), title=f"Network of {system_name} at frame {frame} -- ({round(frame/fps, 2)} s)", xlabel="x [px]", ylabel="y [px]")
+        ax.grid(linewidth=0.2)
         return ax
 
     ax = fig.add_subplot(111)
-    title = ax.set_title('frame = 0')
+    title = ax.set_title('Network of {system_name} at frame 0 -- (0 s)')
     nx.draw_networkx(random_geometric_graphs[0], pos=nx.get_node_attributes(random_geometric_graphs[0], 'pos'),\
                              node_size = 50, node_color = node_colors[0], ax = ax, with_labels=False)
-    ax.set(xlim=(xmin, xmax), ylim=(ymax, ymin), title=f"frame {0}", xlabel="x [px]", ylabel="y [px]")
-    ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames[::5], interval = 5, blit=False)
+    ax.set(xlim=(xmin, xmax), ylim=(ymax, ymin), title=f"frame {0}", xlabel="X", ylabel="Y")
+    ax.grid(linewidth=0.2)
+    if video_selection == "49b1r":
+        ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames, interval = 5, blit=False)
+    elif video_selection == "25b25r":
+        ani = matplotlib.animation.FuncAnimation(fig, update_graph, frames[::3], interval = 5, blit=False)
     writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
-    ani.save(f'{analysis_data_path}/clustering/graph_video_{factor}.mp4', writer=writer, dpi = 300)
+    ani.save(f'{analysis_data_path}/clustering/graph_video_{factor}.mp4', writer=writer, dpi = 100)
     plt.close()
