@@ -4,11 +4,16 @@ In this project, a synthetic realization of an active matter system consisting o
 Droplet trajectories are extracted from video recordings with a tracking pipeline that is developed using computer vision algorithms, allowing us to characterize the dynamical collective behaviour of the system.
 
 ## Tracking :shipit:
-Starting from the video recordings of droplets moving in the solution we want to obtain the droplets' positions and radii maintaining their identity over time. This procedure consists in four steps:
+Starting from the video recordings of droplets moving in the solution we want to obtain the droplets' positions and radii maintaining their identity over time. 
+<details>
+<summary>This procedure consists in four steps:</summary>
+
 * **Pre-processing**: prepares the frame images for the detection algorithm
 * **Detection**: individuates droplet's positions and radii at each frame of the video recording.
 * **Linking**: connects droplets' features over consecutive frames, preserving droplets identity.
 * **Post-processing**: cleans the resulting trajectoris from spurious features detected.
+ 
+</details>
 
 The result of this procedure is shown in the following video: \
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/mFZVwmfTjt4/0.jpg)](https://youtu.be/mFZVwmfTjt4)
@@ -31,3 +36,4 @@ To analyze the trajectories obtained from the tracking procedure and characteriz
   [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/EKGpsmnj62w/0.jpg)](https://youtu.be/EKGpsmnj62w)  
 * **Graph-based analysis**: Studying the graph properties of droplets' spatial arrangements is a powerful tool to understand spatio-temporal patterns in the evolution of the system under study.\
   [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/KpIMomKnQ_A/0.jpg)](https://youtu.be/KpIMomKnQ_A)
+
