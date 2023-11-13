@@ -3,7 +3,7 @@
 In this project, a synthetic realization of an active matter system consisting of 50 self-propelled droplets is analyzed through the means of non-equilibrium statistical mechanics.
 Droplet trajectories are extracted from video recordings with a tracking pipeline that is developed using computer vision algorithms, allowing us to characterize the dynamical collective behaviour of the system.
 
-## Tracking
+## Tracking :shipit:
 Starting from the video recordings of droplets moving in the solution we want to obtain the droplets' positions and radii maintaining their identity over time. This procedure consists in four steps:
 * **Pre-processing**: prepares the frame images for the detection algorithm
 * **Detection**: individuates droplet's positions and radii at each frame of the video recording.
