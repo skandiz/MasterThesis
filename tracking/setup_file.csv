@@ -1,0 +1,2 @@
+video_selection,source_path,save_path,data_preload_path,part,nDrops,xmin,ymin,xmax,ymax,rmax,rmin,start_frame,end_frame,nDrops
+"25b-25r","./data/25b25r-1.mp4","./25b_25r/part2/","/Volumes/ExtremeSSD/UNI/THESIS/h5_data_thesis/25b-25r/",2,50,100,35,530,465,12,8.3,100000,200000,50

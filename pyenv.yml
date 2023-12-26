@@ -9,12 +9,17 @@ dependencies:
   - aiohttp=3.8.5=py39h6c40b1e_0
   - aiosignal=1.2.0=pyhd3eb1b0_0
   - appnope=0.1.2=py39hecd8cb5_1001
+  - arrow-cpp=11.0.0=h9980dd5_2
   - asttokens=2.0.5=pyhd3eb1b0_0
   - astunparse=1.6.3=py_0
   - async-timeout=4.0.2=py39hecd8cb5_0
   - atk-1.0=2.38.0=h1d18e73_1
   - attrs=23.1.0=py39hecd8cb5_0
   - av=9.1.0=py39h188a624_0
+  - aws-c-common=0.4.57=hb1e8313_1
+  - aws-c-event-stream=0.1.6=h27ab107_3
+  - aws-checksums=0.1.9=hd78c526_0
+  - aws-sdk-cpp=1.8.185=he271ece_0
   - backcall=0.2.0=pyhd3eb1b0_0
   - blas=1.0=mkl
   - blinker=1.6.2=py39hecd8cb5_0
@@ -34,7 +39,7 @@ dependencies:
   - cairo=1.16.0=he43a7df_1008
   - cairomm=1.12.2=h694c41f_4
   - cairomm-1.0=1.12.2=h941ccef_4
-  - certifi=2023.7.22=py39hecd8cb5_0
+  - certifi=2023.7.22=pyhd8ed1ab_0
   - cffi=1.15.1=py39h6c40b1e_3
   - cfitsio=3.470=h01dc385_7
   - charls=2.2.0=h046ec9c_0
@@ -71,8 +76,10 @@ dependencies:
   - gast=0.4.0=pyhd3eb1b0_0
   - gdk-pixbuf=2.42.8=hb161b9c_0
   - gettext=0.21.1=h8a4c099_0
+  - gflags=2.2.2=hb1e8313_1004
   - giflib=5.2.1=h6c40b1e_3
   - glib-tools=2.78.1=hf4d7fad_0
+  - glog=0.5.0=h25b26a9_0
   - gmp=6.2.1=h2e338ed_0
   - gnutls=3.6.13=h756fd2b_1
   - google-auth=2.22.0=py39hecd8cb5_0
@@ -90,7 +97,7 @@ dependencies:
   - hicolor-icon-theme=0.17=h694c41f_2
   - icu=68.1=h23ab428_0
   - idna=3.4=py39hecd8cb5_0
-  - imagecodecs=2021.7.30=py39he5b32f2_1
+  - imagecodecs=2021.8.26=py39h0f85e6e_1
   - imageio=2.31.5=pyh8c1a49c_0
   - imageio-ffmpeg=0.4.9=pyhd8ed1ab_0
   - importlib-metadata=6.0.0=py39hecd8cb5_0
@@ -117,7 +124,7 @@ dependencies:
   - krb5=1.20.1=hdba6334_1
   - lame=3.100=hb7f2c08_1003
   - lcms2=2.12=h577c468_0
-  - lerc=2.2.1=h046ec9c_0
+  - lerc=3.0=he49afe7_0
   - libaec=1.1.2=he965462_1
   - libblas=3.9.0=1_h508aa58_netlib
   - libbrotlicommon=1.0.9=hb7f2c08_9
@@ -126,9 +133,10 @@ dependencies:
   - libcblas=3.9.0=5_h0661a58_netlib
   - libcurl=8.2.1=ha585b31_0
   - libcxx=16.0.6=hd57cbcb_0
-  - libdeflate=1.7=h35c211d_5
+  - libdeflate=1.8=h0d85af4_0
   - libedit=3.1.20221030=h6c40b1e_0
   - libev=4.33=h9ed2024_1
+  - libevent=2.1.10=h815e4d9_4
   - libexpat=2.5.0=hf0c8a7f_1
   - libffi=3.4.4=hecd8cb5_0
   - libgfortran=5.0.0=11_3_0_hecd8cb5_28
@@ -146,8 +154,10 @@ dependencies:
   - librsvg=2.52.5=h02b643e_1
   - libsodium=1.0.18=h1de35cc_0
   - libssh2=1.10.0=hdb2fb19_2
-  - libtiff=4.3.0=h1167814_1
-  - libwebp-base=1.3.2=h0dc2134_0
+  - libthrift=0.15.0=hab56fdc_1
+  - libtiff=4.3.0=hd146c10_2
+  - libwebp=1.2.4=hf6ce154_1
+  - libwebp-base=1.2.4=h775f41a_0
   - libxml2=2.9.12=h93ec3fd_0
   - libzlib=1.2.13=h8a1eda9_5
   - libzopfli=1.0.3=h046ec9c_0
@@ -155,7 +165,7 @@ dependencies:
   - llvmlite=0.40.1=py39hfff2838_0
   - locket=1.0.0=pyhd8ed1ab_0
   - looseversion=1.3.0=pyhd8ed1ab_0
-  - lz4-c=1.9.3=he49afe7_1
+  - lz4-c=1.9.4=hf0c8a7f_0
   - markdown=3.4.1=py39hecd8cb5_0
   - markupsafe=2.1.1=py39hca72f7f_0
   - matplotlib-base=3.5.3=py39h03b9044_0
@@ -179,8 +189,9 @@ dependencies:
   - opencv=4.5.1=py39h6e9494a_0
   - openh264=2.1.1=hfd3ada9_0
   - openjpeg=2.4.0=h6e7aa92_1
-  - openssl=1.1.1w=hca72f7f_0
+  - openssl=1.1.1w=h8a1eda9_0
   - opt_einsum=3.3.0=pyhd3eb1b0_1
+  - orc=1.7.4=h4856350_1
   - packaging=23.1=py39hecd8cb5_0
   - pandas=2.1.3=py39h5d65943_0
   - pango=1.48.10=ha05cd14_1
@@ -202,6 +213,7 @@ dependencies:
   - ptyprocess=0.7.0=pyhd3eb1b0_2
   - pure_eval=0.2.2=pyhd3eb1b0_0
   - py-opencv=4.5.1=py39h71a6800_0
+  - pyarrow=11.0.0=py39he65a03e_1
   - pyasn1=0.4.8=pyhd3eb1b0_0
   - pyasn1-modules=0.2.8=py_0
   - pycairo=1.25.0=py39h48b375e_1
@@ -258,6 +270,7 @@ dependencies:
   - tzdata=2023c=h04d1e81_0
   - unicodedata2=15.1.0=py39hdc70f33_0
   - urllib3=1.26.18=py39hecd8cb5_0
+  - utf8proc=2.6.1=h9ed2024_0
   - wcwidth=0.2.5=pyhd3eb1b0_0
   - werkzeug=2.2.3=py39hecd8cb5_0
   - wheel=0.35.1=pyhd3eb1b0_0
@@ -272,7 +285,7 @@ dependencies:
   - zipp=3.11.0=py39hecd8cb5_0
   - zlib=1.2.13=h8a1eda9_5
   - zstandard=0.19.0=py39ha30fb19_0
-  - zstd=1.5.0=h582d3a0_0
+  - zstd=1.5.5=h829000d_0
   - pip:
       - nudged==0.3.1
       - opencv-python==4.8.1.78
