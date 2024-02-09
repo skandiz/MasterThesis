@@ -27,3 +27,12 @@ analysis/49b_1r/results/graph/motif/*
 analysis/figures.ipynb
 MSc_Matteo Scandola_MOD.key
 *.webm
+
+tracking/models/stardist/*
+
+new*
+test*
+setup_file*
+tracking/train/*
+*.tif
+*.labeling

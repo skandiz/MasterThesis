@@ -1,2 +1,0 @@
-25b25r part1; rmax = 12, rmin = 8.3
-25b25r part2: rmax = 11, rmin = 7
