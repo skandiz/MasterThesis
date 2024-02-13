@@ -28,7 +28,7 @@ analysis/figures.ipynb
 MSc_Matteo Scandola_MOD.key
 *.webm
 
-tracking/models/stardist/*
+tracking/models/*
 
 new*
 test*
