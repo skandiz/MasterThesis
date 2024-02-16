@@ -36,3 +36,4 @@ setup_file*
 tracking/train/*
 *.tif
 *.labeling
+*.parquet
