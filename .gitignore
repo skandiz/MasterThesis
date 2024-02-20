@@ -6,34 +6,32 @@
 ehthumbs.db
 Thumbs.db
 .tmp.driveupload/*
+
 *.pdf
 *.mp4
+*.tif
+*.labeling
+*.parquet
+*.webm
+*.pyc
+
+.vscode/*
 
 MSc Matteo Scandola.key
+MSc_Matteo Scandola_MOD.key
 papers/*
 
 tracking/data/*
-tracking/25b_25r/*
-tracking/49b_1r/*
+tracking/old/*
+tracking/25b25r-1/*
+tracking/49b1r/*
 tracking/stardist_res/*
+tracking/models/*
+tracking/simulation/*
 
 analysis/49b_1r/old/*
-
 analysis/49b_1r/analysis_data/*
 analysis/25b_25r/analysis_data/*
 analysis/25b_25r/results/graph/motif/*
 analysis/49b_1r/results/graph/motif/*
-.vscode/*
 analysis/figures.ipynb
-MSc_Matteo Scandola_MOD.key
-*.webm
-
-tracking/models/*
-
-new*
-test*
-setup_file*
-tracking/train/*
-*.tif
-*.labeling
-*.parquet
