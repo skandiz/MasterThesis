@@ -7,6 +7,7 @@ from tqdm import tqdm
 from csbdeep.utils import normalize
 import skimage
 import pandas as pd
+import matplotlib.pyplot as plt
 
 ##################################################################################################################
 #                                        PREPROCESSING FUNCTIONS                                                 #
@@ -64,6 +65,7 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
 #                                           STARDIST FUNCTIONS                                                   #
 ##################################################################################################################
 
+
 def detect_features_frame(feature_properties_dict, frame, img, model):
     segmented_image, dict_test = model.predict_instances(normalize(img), predict_kwargs = {'verbose' : False})
 
@@ -91,7 +93,6 @@ def detect_features(frames, test_verb, video_selection, model, model_name, video
                                 'inertia_tensor-1-1':[], 'inertia_tensor_eigvals-0':[], 'inertia_tensor_eigvals-1':[],\
                                 'label':[]}
 
-    #test = parallel(detect_features_frame(feature_properties_dict, frame) for frame in tqdm(frames))
     for frame in tqdm(frames):
         img = get_frame(video, frame, xmin, ymin, xmax, ymax, w, h, True)
         feature_properties_dict = detect_features_frame(feature_properties_dict, frame, img, model)
@@ -102,14 +103,18 @@ def detect_features(frames, test_verb, video_selection, model, model_name, video
     raw_detection_df['frame'] = raw_detection_df.frame.astype('int')
     raw_detection_df.sort_values(by=['frame', 'prob'], ascending=[True, False], inplace=True)
     if test_verb:
-        raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_test.parquet')
+        pass
+        #raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_test.parquet', index=False)
     else:
-        raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_{frames[0]}_{frames[-1]}.parquet')
+        raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_{frames[0]}_{frames[-1]}.parquet', index=False)
     return raw_detection_df
 
-def test_detection(n_samples, n_frames):
+def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, save_path):
+    print(f"Testing detection on {n_samples} random frames")
     sample_frames = np.sort(np.random.choice(np.arange(0, n_frames, 1, dtype=int), n_samples, replace=False))
-    raw_detection_df = detect_features(frames = sample_frames, test_verb = True)
+    raw_detection_df = detect_features(frames = sample_frames, test_verb = True, video_selection = video_selection,\
+                                       model = model, model_name = model_name, video = video, xmin = xmin, ymin = ymin,\
+                                       xmax = xmax, ymax = ymax, w = w, h = h, save_path = save_path)
 
     n_feature_per_frame = raw_detection_df.groupby('frame').count().x.values
     fig, ax = plt.subplots(2, 2, figsize = (8, 4))
@@ -149,6 +154,22 @@ def filter_detection_data(r_min, r_max, raw_detection_df, nDrops):
     print("Frames with spurious effects after filtering:", len(np.where(filtered_df.groupby('frame').count().x.values != nDrops)[0]), "/", len(filtered_df.frame.unique()))
     return filtered_df
 
+
+def interpolate_trajectory(group):
+    interp_method = 'quadratic'
+    all_frames = pd.DataFrame({"frame": range(group["frame"].min(), group["frame"].max() + 1)})
+    merged = pd.merge(all_frames, group, on="frame", how="left")
+    merged = merged.sort_values(by="frame")
+    # Interpolate missing values
+    merged["x"]        = merged["x"].interpolate(method = interp_method)
+    merged["y"]        = merged["y"].interpolate(method = interp_method)
+    merged["r"]        = merged["r"].interpolate(method = interp_method)
+    merged["area"]     = merged["area"].interpolate(method = interp_method)
+    merged["prob"]     = merged["prob"].interpolate(method = interp_method)
+    merged["frame"]    = merged["frame"].interpolate(method = interp_method)
+    merged["particle"] = merged["particle"].ffill()
+    merged["color"]    = merged["color"].ffill()
+    return merged
 
 def plot_img_label(img, lbl, img_title="image", lbl_title="label", **kwargs):
     fig, (ai,al) = plt.subplots(1,2, figsize=(12,5), gridspec_kw=dict(width_ratios=(1.25,1)))

@@ -1,0 +1,1 @@
+qsub -I -q short_cpuQ -l select=5:ncpus=12:mem=23gb,walltime=00:30:00  --> 4 it/s
