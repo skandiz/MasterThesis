@@ -1,4 +1,5 @@
 import joblib
+parallel = joblib.Parallel(n_jobs=4, backend='loky', verbose=0)
 import random
 import numpy as np
 import cv2
@@ -65,7 +66,6 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
 #                                           STARDIST FUNCTIONS                                                   #
 ##################################################################################################################
 
-
 def detect_features_frame(feature_properties_dict, frame, img, model):
     segmented_image, dict_test = model.predict_instances(normalize(img), predict_kwargs = {'verbose' : False})
 
@@ -96,7 +96,7 @@ def detect_features(frames, test_verb, video_selection, model, model_name, video
     for frame in tqdm(frames):
         img = get_frame(video, frame, xmin, ymin, xmax, ymax, w, h, True)
         feature_properties_dict = detect_features_frame(feature_properties_dict, frame, img, model)
-
+                
     feature_properties_dict['r'] = np.sqrt(np.array(feature_properties_dict['area'])/np.pi)
     raw_detection_df = pd.DataFrame(feature_properties_dict)
     raw_detection_df.rename(columns={'centroid-0': 'y', 'centroid-1': 'x'}, inplace=True)

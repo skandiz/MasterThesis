@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=16:mem=30GB
+#PBS -l walltime=8:00:00
+#PBS -q VARIAMOLS_gpuQ
+#PBS -o test.err
+#PBS -e test.out
+#PBS -M matteo.scandola@studenti.unitn.it
+#PBS -m abe
+
+source ~/.bashrc
+conda activate csbdeep
+#source tf/bin/activate
+cd projects/Master/tracking/
+python3 stardist_pipeline.py
