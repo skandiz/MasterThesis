@@ -6,7 +6,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 import trackpy as tp
 import pandas as pd
-
+from scipy.spatial import KDTree, cKDTree, Voronoi, voronoi_plot_2d, ConvexHull
 import yupi.stats as ys
 from yupi import Trajectory, WindowType, DiffMethod
 
