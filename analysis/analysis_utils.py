@@ -10,6 +10,12 @@ from scipy.spatial import KDTree, cKDTree, Voronoi, voronoi_plot_2d, ConvexHull
 import yupi.stats as ys
 from yupi import Trajectory, WindowType, DiffMethod
 
+def trim_up_to_char(s, char):
+    index = s.find(char)
+    if index != -1:
+        return s[:index]
+    return s
+
 def get_smooth_trajs(trajs, nDrops, windLen, orderofPoly):
     # Trajectory Smoothing: using a Savgol Filter in order to drop the noise due to the tracking procedure
     ret = trajs.copy()

@@ -6,13 +6,15 @@ from stardist.models import Config2D, StarDist2D
 from csbdeep.utils import Path, normalize
 from tifffile import imread
 from glob import glob
-from utils.py import plot_img_label, random_fliprot, random_intensity_change, augmenter
+from tracking_utils import plot_img_label, random_fliprot, random_intensity_change, augmenter
 import logging
 logging.getLogger("tensorflow").setLevel(logging.ERROR) # this goes *before* tf import
 import tensorflow as tf
-
 np.random.seed(42)
 lbl_cmap = random_label_cmap()
+
+
+training_model = 'pretrained_2D_versatile_fluo' # 'new'
 
 X = sorted(glob("./simulation/synthetic_dataset/image/*.tif"))
 Y = sorted(glob("./simulation/synthetic_dataset/mask/*.tif"))
@@ -42,16 +44,10 @@ print('number of images: %3d' % len(X))
 print('- training:       %3d' % len(X_trn))
 print('- validation:     %3d' % len(X_val))
 
-if 0:
-    # 32 is a good default choice (see 1_data.ipynb)
+if training_model == 'new':
     n_rays = 32
-
-    # Use OpenCL-based computations for data generator during training (requires 'gputools')
     use_gpu = False and gputools_available()
-
-    # Predict on subsampled grid for increased efficiency and larger field of view
     grid = (2, 2)
-
     conf = Config2D (
         n_rays       = n_rays,
         grid         = grid,
@@ -60,34 +56,27 @@ if 0:
     )
     print(conf)
     vars(conf)
-
     if use_gpu:
         from csbdeep.utils.tf import limit_gpu_memory
-        # adjust as necessary: limit GPU memory to be used by TensorFlow to leave some to OpenCL-based computations
         limit_gpu_memory(0.8)
-        # alternatively, try this:
-        # limit_gpu_memory(None, allow_growth=True)
-
     timestamp = time.time()
-    model = StarDist2D(conf, name=f'stardist_trained_on_simulated_dataset', basedir='models')
-
+    model = StarDist2D(conf, name=f'stardist_trained', basedir='models')
     median_size = calculate_extents(list(Y), np.median)
     fov = np.array(model._axes_tile_overlap('YX'))
     print(f"median object size:      {median_size}")
     print(f"network field of view :  {fov}")
     if any(median_size > fov):
         print("WARNING: median object size larger than field of view of the neural network.")
-
-    model.train(X_trn, Y_trn, validation_data=(X_val, Y_val), augmenter=augmenter, epochs=50, steps_per_epoch=100)
+    model.train(X_trn, Y_trn, validation_data=(X_val, Y_val), augmenter=augmenter, epochs=150, steps_per_epoch=100)
     model.optimize_thresholds(X_val, Y_val)
 
-else:
+elif training_model == 'pretrained_2D_versatile_fluo':
     if 1:
         model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_trained_on_simulation', dirs_exist_ok=True)
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_trained_on_simulation')
+        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo', dirs_exist_ok=True)
+        model = StarDist2D(None, './models/modified_2D_versatile_fluo')
     else:
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_trained_on_simulation', \
+        model = StarDist2D(None, name = 'modified_2D_versatile_fluo', \
                                basedir = 'models')
 
     median_size = calculate_extents(list(Y), np.median)
@@ -96,6 +85,5 @@ else:
     print(f"network field of view :  {fov}")
     if any(median_size > fov):
         print("WARNING: median object size larger than field of view of the neural network.")
-
     model.train(X_trn, Y_trn, validation_data=(X_val, Y_val), augmenter=augmenter, epochs = 150, steps_per_epoch = 100)
     model.optimize_thresholds(X_val, Y_val)

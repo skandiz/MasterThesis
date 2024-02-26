@@ -12,9 +12,8 @@ import random
 from stardist import _draw_polygons
 from stardist.models import StarDist2D
 import trackpy as tp
-
 from tifffile import imsave, imread
-from utils import detect_features_frame, detect_features, test_detection, get_frame, interpolate_trajectory
+from tracking_utils import detect_features_frame, detect_features, test_detection, get_frame, interpolate_trajectory
 
 model_name = 'modified_2D_versatile_fluo' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
 model = StarDist2D(None, name = model_name, basedir = './models/')
@@ -132,7 +131,7 @@ if link_verb:
 
         ## PRE MERGE
         t = tp.link_df(raw_detection_df.loc[raw_detection_df.frame < merge_frame], cutoff,\
-                                 memory = max_n_of_consecutive_errs_pre_merge, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
+                                 memory = max_n_of_consecutive_errs_pre_merge + 1, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
         t = t.sort_values(['frame', 'particle'])
         trajectories_pre_merge = tp.filter_stubs(t, 25)
         # CREATE COLOR COLUMN AND SAVE DF
@@ -151,7 +150,7 @@ if link_verb:
 
         ## POST MERGE
         t = tp.link_df(raw_detection_df.loc[raw_detection_df.frame >= merge_frame], cutoff,\
-                                  memory = max_n_of_consecutive_errs_post_merge, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
+                                  memory = max_n_of_consecutive_errs_post_merge + 1, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
         t = t.sort_values(['frame', 'particle'])
         trajectories_post_merge = tp.filter_stubs(t, 25)
         # CREATE COLOR COLUMN AND SAVE DF
@@ -170,7 +169,7 @@ if link_verb:
     else:
         print('Linking trajectories...')
         cutoff = 100
-        t = tp.link_df(raw_detection_df, cutoff, memory = max_n_of_consecutive_errs, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
+        t = tp.link_df(raw_detection_df, cutoff, memory = max_n_of_consecutive_errs + 1, link_strategy = 'hybrid', neighbor_strategy = 'KDTree', adaptive_stop = 1)
         #print(t)
         t = t.sort_values(['frame', 'particle'])
         trajectories = tp.filter_stubs(t, 25)
