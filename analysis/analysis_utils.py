@@ -133,14 +133,21 @@ def get_trajs(nDrops, red_particle_idx, trajs, subsample_factor, fps):
 
 
 # get speed distributions windowed in time
-def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps):
+def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps, progress_verb):
     v_blue_wind = []
     v_red_wind = []
-    for k in tqdm(range(nSteps)):
-        trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
-        blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
-        v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
-        v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
+    if progress_verb: 
+        for k in tqdm(range(nSteps)):
+            trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
+            blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
+            v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
+            v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
+    else:
+        for k in range(nSteps):
+            trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
+            blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
+            v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
+            v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
     return v_blue_wind, v_red_wind
     
 
