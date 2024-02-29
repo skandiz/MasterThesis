@@ -1,4 +1,5 @@
 import joblib
+parallel = joblib.Parallel(n_jobs = -2)
 from scipy.signal import savgol_filter
 from tqdm import tqdm
 import cv2
@@ -86,7 +87,7 @@ def get_imsd_windowed(nDrops, nSteps, startFrames, endFrames, trajs, pxDimension
     fit_wind = np.zeros((nSteps, nDrops, len(fit_range)))
     pw_exp_wind = np.zeros((nSteps, nDrops, 2, 2))
     for i in tqdm(range(nSteps)):
-        trajs_wind = trajs.loc[trajs.frame.between(startFrames[i], endFrames[i])]
+        trajs_wind = trajs.loc[(trajs.frame >= startFrames[i]) & (trajs.frame < endFrames[i])]
         temp, fit_wind[i], pw_exp_wind[i], = get_imsd(trajs_wind, pxDimension, fps, maxLagtime, fit_range)
         MSD_wind.append(temp)
     return MSD_wind, fit_wind, pw_exp_wind
@@ -94,7 +95,7 @@ def get_imsd_windowed(nDrops, nSteps, startFrames, endFrames, trajs, pxDimension
 
 def get_emsd_windowed(imsd, x, fps, red_mask, nSteps, maxLagtime, fit_range):
     id_start = np.where(imsd[0].index == fit_range[0])[0][0]
-    id_end = np.where(imsd[0].index == fit_range[-1])[0][0] + 1
+    id_end   = np.where(imsd[0].index == fit_range[-1])[0][0] + 1
     EMSD_wind = np.array(imsd)
     EMSD_wind_b = [EMSD_wind[:, :, ~red_mask].mean(axis = 2), 
                     EMSD_wind[:, :, ~red_mask].std(axis = 2)]
@@ -133,21 +134,14 @@ def get_trajs(nDrops, red_particle_idx, trajs, subsample_factor, fps):
 
 
 # get speed distributions windowed in time
-def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps, progress_verb):
+def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps):
     v_blue_wind = []
     v_red_wind = []
-    if progress_verb: 
-        for k in tqdm(range(nSteps)):
-            trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
-            blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
-            v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
-            v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
-    else:
-        for k in range(nSteps):
-            trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
-            blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
-            v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
-            v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
+    for k in tqdm(range(nSteps)):
+        trajs_wind = trajs.loc[(trajs.frame >= startFrames[k]) & (trajs.frame < endFrames[k])]
+        blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
+        v_blue_wind.append(ys.speed_ensemble(blueTrajs, step=1))
+        v_red_wind.append(ys.speed_ensemble(redTrajs, step=1))
     return v_blue_wind, v_red_wind
     
 
@@ -156,7 +150,7 @@ def turning_angles_windowed(nDrops, nSteps, startFrames, endFrames, red_particle
     theta_blue_wind = []
     theta_red_wind = []
     for k in tqdm(range(nSteps)):
-        trajs_wind = trajs.loc[trajs.frame.between(startFrames[k], endFrames[k])]
+        trajs_wind = trajs.loc[(trajs.frame >= startFrames[k]) & (trajs.frame < endFrames[k])]
         blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
         theta_blue_wind.append(ys.turning_angles_ensemble(blueTrajs, centered= True))
         theta_red_wind.append(ys.turning_angles_ensemble(redTrajs, centered= True))
@@ -190,21 +184,32 @@ def fit_hist(y, bins_, distribution, p0_):
     ret_std = np.sqrt(np.diag(pcov))
     return ret, ret_std
 
-def vacf_windowed(trajectories, nSteps, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime):        
+@joblib.delayed
+def vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime):
+    trajs_wind = trajs.loc[(trajs.frame >= startFrames[k]) & (trajs.frame < endFrames[k])]
+    blueTrajs, redTrajs = get_trajs(len(trajs_wind.particle.unique()), red_particle_idx, trajs_wind, subsample_factor, fps)
+    res1, res2 = ys.vacf(blueTrajs, time_avg = True, lag = maxLagtime)
+    res3, res4 = ys.vacf(redTrajs, time_avg = True, lag = maxLagtime)
+    return res1, res2, res3, res4
+
+def vacf_windowed(trajs, nSteps, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime):        
     vacf_b_wind = []
     vacf_b_std_wind = []
     vacf_r_wind = []
     vacf_r_std_wind = []
     
-    for k in tqdm(range(nSteps)):
-        trajs_wind = trajectories.loc[trajectories.frame.between(startFrames[k], endFrames[k])]
-        blueTrajs, redTrajs = get_trajs(len(trajs_wind.particle.unique()), red_particle_idx, trajs_wind, subsample_factor, fps)
-        temp = ys.vacf(blueTrajs, time_avg = True, lag = maxLagtime)
-        vacf_b_wind.append(temp[0])
-        vacf_b_std_wind.append(temp[1])
-        temp = ys.vacf(redTrajs, time_avg = True, lag = maxLagtime)
-        vacf_r_wind.append(temp[0])
-        vacf_r_std_wind.append(temp[1])
+    vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = zip(*parallel(vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime) for k in tqdm(range(nSteps))))
+
+    if 0: 
+        for k in tqdm(range(nSteps)):
+            trajs_wind = trajs.loc[(trajs.frame >= startFrames[k]) & (trajs.frames < endFrames[k])]
+            blueTrajs, redTrajs = get_trajs(len(trajs_wind.particle.unique()), red_particle_idx, trajs_wind, subsample_factor, fps)
+            temp = ys.vacf(blueTrajs, time_avg = True, lag = maxLagtime)
+            vacf_b_wind.append(temp[0])
+            vacf_b_std_wind.append(temp[1])
+            temp = ys.vacf(redTrajs, time_avg = True, lag = maxLagtime)
+            vacf_r_wind.append(temp[0])
+            vacf_r_std_wind.append(temp[1])
 
     vacf_b_wind = pd.DataFrame(vacf_b_wind)
     vacf_b_std_wind = pd.DataFrame(vacf_b_std_wind)
