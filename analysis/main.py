@@ -1447,11 +1447,10 @@ if velocity_autocovariance_verb:
 
     blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, subsample_factor, fps)
     #Global Velocity Autocovariance
-    if 0:
-        vacf_b, vacf_std_b = ys.vacf(blueTrajs, time_avg=True, lag = maxLagtime)
-        vacf_r, vacf_std_r = ys.vacf(redTrajs, time_avg=True, lag = maxLagtime)
+    vacf_b, vacf_std_b = ys.vacf(blueTrajs, time_avg=True, lag = maxLagtime)
+    vacf_r, vacf_std_r = ys.vacf(redTrajs, time_avg=True, lag = maxLagtime)
 
-    if 0:
+    if plot_verb:
         fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4))
         ax.errorbar(np.arange(0, maxLagtime/fps, 1/fps), vacf_b, fmt='o', markersize = 1, color = 'blue', label = 'Blue droplets')
         ax.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b + vacf_std_b, vacf_b - vacf_std_b, alpha=1, edgecolor='#F0FFFF', facecolor='#00FFFF')
