@@ -117,6 +117,7 @@ def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_na
                                        xmax = xmax, ymax = ymax, w = w, h = h, save_path = save_path)
 
     n_feature_per_frame = raw_detection_df.groupby('frame').count().x.values
+    print(f"Frames with spurious effects:", len(np.where(n_feature_per_frame != nDrops)[0]), "/", len(sample_frames))
     fig, ax = plt.subplots(2, 2, figsize = (8, 4))
     ax[0, 0].plot(raw_detection_df.frame.unique(), n_feature_per_frame, '.')
     ax[0, 0].set(xlabel = 'Frame', ylabel = 'N of droplets', title = 'N of droplets per frame')
