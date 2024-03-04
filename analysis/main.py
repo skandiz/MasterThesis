@@ -28,18 +28,17 @@ import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 show_verb = False
-run_windowed_analysis = True
+run_analysis_verb = False
 plot_verb = True
 animated_plot_verb = True
 save_verb = True
-run_analysis_verb = True
 
 ABP_verb = False
 radius_verb = False
 msd_verb = False
 velocity_verb = False
 turning_angles_verb = False
-velocity_autocovariance_verb = True
+velocity_autocovariance_verb = False
 rdf_verb = True
 graph_verb = False
 motif_verb = False
@@ -392,7 +391,7 @@ if msd_verb:
             plt.close()
 
     print('Windowed Mean Squared Displacement analysis...')
-    if run_windowed_analysis: 
+    if run_analysis_verb: 
         # IMSD
         MSD_wind, fit_wind, pw_exp_wind = get_imsd_windowed(nDrops, nSteps, startFrames, endFrames, trajectories, pxDimension, fps, maxLagtime, x_diffusive)
         # EMSD
@@ -430,7 +429,7 @@ if msd_verb:
     min_d_b_std = fit_dict['pw_exp_wind_r'][np.where(fit_dict['pw_exp_wind_r'][:, 0, 0] == min_d_r)[0][0], 1, 0]
     print('Min D red:', round(min_d_r, 3), '±', round(min_d_b_std, 3))
 
-    if run_windowed_analysis and plot_verb:
+    if run_analysis_verb and plot_verb:
         fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4))
         ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
         ax.fill_between(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1] - fit_dict['pw_exp_wind_b'][:, 1, 1],     
@@ -1748,7 +1747,7 @@ if rdf_verb:
     rho_r = n_red/(np.pi*rDisk**2) 
     rho   = nDrops/(np.pi*rDisk**2)
 
-    if 1:
+    if run_analysis_verb:
         rdf = get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red)
         rdf_b  = rdf[:, 0, :]
         rdf_r  = rdf[:, 1, :]
