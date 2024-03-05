@@ -77,7 +77,7 @@ def exp(t, A, tau, c):
 def fit_hist(y, bins_, distribution, p0_):
     bins_c = bins_[:-1] + np.diff(bins_) / 2
     bin_heights, _ = np.histogram(y, bins = bins_, density = True)
-    ret, pcov = curve_fit(distribution, bins_c, bin_heights, p0 = p0_)
+    ret, pcov = curve_fit(distribution, bins_c, bin_heights, p0 = p0_, maxfev = 1000)
     ret_std = np.sqrt(np.diag(pcov))
     return ret, ret_std
 
@@ -109,7 +109,7 @@ def get_smooth_trajs(trajs, nDrops, windLen, orderofPoly):
 def powerLawFit(f, x, nDrops, yerr):
     if nDrops == 1:
         ret = np.zeros((2, 2))
-        ret[0], pcov = curve_fit(powerLaw, x, f, p0 = [1., 1.])
+        ret[0], pcov = curve_fit(powerLaw, x, f, p0 = [1., 1.], maxfev = 1000)
         ret[1] = np.sqrt(np.diag(pcov))
         fit = ret[0, 0] * x**ret[0, 1]
     else:
@@ -117,9 +117,9 @@ def powerLawFit(f, x, nDrops, yerr):
         ret = np.zeros((nDrops, 2, 2))
         for i in range(nDrops):
             if yerr is None:
-                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.])
+                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], maxfev = 1000)
             else:
-                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], sigma = yerr)
+                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], sigma = yerr, maxfev = 1000)
             ret[i, 1] = np.sqrt(np.diag(pcov))
             fit[i] = ret[i, 0, 0] * x**ret[i, 0, 1]
     return fit, ret 

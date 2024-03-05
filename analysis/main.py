@@ -28,6 +28,8 @@ animated_plot_verb = True
 save_verb = True
 run_analysis_verb = False
 
+if 0: plt.rcParams['animation.ffmpeg_path'] = '/home/matteo.scandola/ffmpeg-git-20240301-amd64-static'
+
 ABP_verb = False
 radius_verb = True
 msd_verb = True
@@ -222,13 +224,13 @@ if radius_verb:
     mean_radius_b = np.mean(np.array(trajectories.r).reshape(nFrames, nDrops)[:, ~red_mask], axis=1)
     mean_radius_r = np.mean(np.array(trajectories.r).reshape(nFrames, nDrops)[:, red_mask], axis=1)
 
-    fit_b, pcov_b = curve_fit(powerLaw, frames[1:]/fps, mean_radius_b[1:], p0 = [1., 1.])
-    fit_r, pcov_r = curve_fit(powerLaw, frames[1:]/fps, mean_radius_r[1:], p0 = [1., 1.])
+    fit_b, pcov_b = curve_fit(powerLaw, frames[1:]/fps, mean_radius_b[1:], p0 = [1., 1.], maxfev = 1000)
+    fit_r, pcov_r = curve_fit(powerLaw, frames[1:]/fps, mean_radius_r[1:], p0 = [1., 1.], maxfev = 1000)
     print(f'Blue droplets: r = {fit_b[0]:.2f} t^{fit_b[1]:.2f}')
     print(f'Red droplets: r = {fit_r[0]:.2f} t^{fit_r[1]:.2f}')
 
-    fit_b_exp, pcov_b_exp = curve_fit(exp, frames/fps, mean_radius_b, p0 = [1., 1., 0.])
-    fit_r_exp, pcov_r_exp = curve_fit(exp, frames/fps, mean_radius_r, p0 = [1., 1., 0.])
+    fit_b_exp, pcov_b_exp = curve_fit(exp, frames/fps, mean_radius_b, p0 = [1., 1., 0.], maxfev = 1000)
+    fit_r_exp, pcov_r_exp = curve_fit(exp, frames/fps, mean_radius_r, p0 = [1., 1., 0.], maxfev = 1000)
     print(f'Blue droplets: r = {fit_b_exp[0]:.2f} exp(-t/{fit_b_exp[1]:.2f}) + {fit_b_exp[2]:.2f}')
     print(f'Red droplets: r = {fit_r_exp[0]:.2f} exp(-t/{fit_r_exp[1]:.2f}) + {fit_r_exp[2]:.2f}')
 
