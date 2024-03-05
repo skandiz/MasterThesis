@@ -26,9 +26,8 @@ show_verb = False
 plot_verb = True
 animated_plot_verb = True
 save_verb = True
-run_analysis_verb = False
+run_analysis_verb = True
 
-if 0: plt.rcParams['animation.ffmpeg_path'] = '/home/matteo.scandola/ffmpeg-git-20240301-amd64-static'
 
 ABP_verb = False
 radius_verb = True
@@ -36,7 +35,7 @@ msd_verb = True
 velocity_verb = True
 turning_angles_verb = True
 velocity_autocovariance_verb = True
-rdf_verb = False
+rdf_verb = True
 graph_verb = False
 motif_verb = False
 
@@ -44,7 +43,7 @@ motif_verb = False
 #                                               IMPORT DATA
 #############################################################################################################
 if 1:
-    video_selection = '49b1r_post_merge'
+    video_selection = '25b25r-1'
     if video_selection == '25b25r-1':
         nDrops             = 50
         xmin, ymin, xmax, ymax = 95, 30, 535, 470    
@@ -72,7 +71,7 @@ if 1:
         original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
         red_particle_idx = np.array([15]).astype(int)
 
-    windowLenght = 300 # seconds
+    windowLenght = 600 # seconds
     path = trim_up_to_char(video_selection, '_')
     source_path        = f'../tracking/data/{path}.mp4'
     res_path           = f'./{video_selection}/results_{windowLenght}'
@@ -148,7 +147,7 @@ if 1:
         plt.tight_layout()
         if save_verb:
             plt.savefig(f'./{res_path}/initial_final_frame.png', bbox_inches='tight')
-            plt.savefig(f'{pdf_res_path}/initial_final_frame.pdf', bbox_inches='tight')
+            #plt.savefig(f'{pdf_res_path}/initial_final_frame.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -259,7 +258,7 @@ if radius_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(res_path     + "/dimension_analysis/mean_radius.png", bbox_inches='tight')
-            plt.savefig(pdf_res_path + "/dimension_analysis/mean_radius.pdf", bbox_inches='tight')
+            #plt.savefig(pdf_res_path + "/dimension_analysis/mean_radius.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -280,7 +279,7 @@ if radius_verb:
         plt.tight_layout()
         if save_verb:
             plt.savefig(res_path     + "/dimension_analysis/mean_radius_fit.png", bbox_inches='tight')
-            plt.savefig(pdf_res_path + "/dimension_analysis/mean_radius_fit.pdf", bbox_inches='tight')
+            #plt.savefig(pdf_res_path + "/dimension_analysis/mean_radius_fit.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -299,7 +298,7 @@ if radius_verb:
         ax.legend(["Mean", "Blue droplets", "Red droplets"])
         if save_verb: 
             plt.savefig(res_path + "/dimension_analysis/radius_wind.png", bbox_inches='tight')
-            plt.savefig(pdf_res_path + "/dimension_analysis/radius_wind.pdf", bbox_inches='tight')
+            #plt.savefig(pdf_res_path + "/dimension_analysis/radius_wind.pdf", bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -324,7 +323,7 @@ if radius_verb:
         ax.legend()
         if save_verb:
             plt.savefig(f'{res_path}/dimension_analysis/depth_over_time.png')
-            plt.savefig(f'{pdf_res_path}/dimension_analysis/depth_over_time.pdf')
+            #plt.savefig(f'{pdf_res_path}/dimension_analysis/depth_over_time.pdf')
         if show_verb:
             plt.show()
         else:
@@ -355,7 +354,7 @@ if msd_verb:
         plt.suptitle(f'Mean Squared Displacement - {system_name}')
         if save_verb:
             plt.savefig(f'./{res_path}/mean_squared_displacement/IMSD.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD.pdf', bbox_inches='tight')
         plt.close()
 
         fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 4))
@@ -370,7 +369,7 @@ if msd_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/IMSD_2.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD_2.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD_2.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -395,7 +394,7 @@ if msd_verb:
         ax3.grid()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/IMSD_v2.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD_v2.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/IMSD_v2.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -407,7 +406,7 @@ if msd_verb:
         ax.grid(linewidth = 0.2)
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/k_alpha_scatterplot.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/k_alpha_scatterplot.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/k_alpha_scatterplot.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -426,7 +425,7 @@ if msd_verb:
         ax.grid(linewidth = 0.2)
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/EMSD.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/EMSD.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/EMSD.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -497,7 +496,7 @@ if msd_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_windowed.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_windowed.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_windowed.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -521,7 +520,7 @@ if msd_verb:
         ax.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2))
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_alpha.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -543,7 +542,7 @@ if msd_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -561,7 +560,7 @@ if msd_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v2.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v2.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v2.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -582,7 +581,7 @@ if msd_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v3.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v3.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/mean_squared_displacement/windowed_analysis/EMSD_D_v3.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -811,7 +810,7 @@ if velocity_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/speed_distribution.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -832,7 +831,7 @@ if velocity_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/speed_distribution_generalized.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution_generalized.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution_generalized.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -889,7 +888,7 @@ if velocity_verb:
         ax.legend()
         if save_verb:
             plt.savefig(f'./{res_path}/speed_distribution/speed_windowed_mean.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_windowed_mean.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_windowed_mean.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -912,7 +911,7 @@ if velocity_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/speed_distribution_windowed.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution_windowed.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/speed_distribution_windowed.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -927,7 +926,7 @@ if velocity_verb:
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² of the fit of the velocity distribution - {system_name}')
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/r2.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/r2.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/r2.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -944,7 +943,7 @@ if velocity_verb:
         ax.grid(linewidth = 0.2)
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/sigma_MB.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/sigma_MB.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/sigma_MB.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -961,7 +960,7 @@ if velocity_verb:
         ax.legend()
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/r2_generalized_MB.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/r2_generalized_MB.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/r2_generalized_MB.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -986,7 +985,7 @@ if velocity_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/speed_distribution/fit_results_generalizedMB.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/speed_distribution/fit_results_generalizedMB.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/speed_distribution/fit_results_generalizedMB.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1168,7 +1167,7 @@ if turning_angles_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/turn_ang_gaussian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_gaussian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_gaussian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1196,7 +1195,7 @@ if turning_angles_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/turn_ang_lorentzian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_lorentzian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_lorentzian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1258,7 +1257,7 @@ if turning_angles_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/turn_ang_gaussian_windowed.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_gaussian_windowed.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_gaussian_windowed.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1274,7 +1273,7 @@ if turning_angles_verb:
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² of the Gaussian fit of the turning angles distribution - {system_name}')
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/r2_gaussian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/r2_gaussian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/r2_gaussian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1294,7 +1293,7 @@ if turning_angles_verb:
         ax.grid(linewidth = 0.2)
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/fit_results_gaussian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/fit_results_gaussian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/fit_results_gaussian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1311,7 +1310,7 @@ if turning_angles_verb:
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² confront fit of the turning angles distribution - {system_name}')
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/r2_confront.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/r2_confront.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/r2_confront.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1339,7 +1338,7 @@ if turning_angles_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/turn_ang_lorentzian_windowed.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_lorentzian_windowed.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/turn_ang_lorentzian_windowed.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1354,7 +1353,7 @@ if turning_angles_verb:
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² of the Lorentzian fit of the turning angles distribution - {system_name}')
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/r2_lorentzian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/r2_lorentzian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/r2_lorentzian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1374,7 +1373,7 @@ if turning_angles_verb:
         ax.grid(linewidth = 0.2)
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/fit_results_lorentzian.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/turning_angles/fit_results_lorentzian.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/turning_angles/fit_results_lorentzian.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1506,7 +1505,7 @@ if velocity_autocovariance_verb:
         plt.tight_layout()
         if save_verb: 
             plt.savefig(f'./{res_path}/velocity_autocovariance/vacf.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/vacf.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/vacf.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -1545,7 +1544,7 @@ if velocity_autocovariance_verb:
         ax.legend()
         if save_verb: 
             plt.savefig(f'./{res_path}/velocity_autocovariance/vacf_wind_0.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/vacf_wind_0.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/vacf_wind_0.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else: 
@@ -1586,7 +1585,7 @@ if velocity_autocovariance_verb:
         plt.tight_layout()
         if save_verb:
             plt.savefig(f'./{res_path}/velocity_autocovariance/evolution.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1640,7 +1639,7 @@ if velocity_autocovariance_verb:
         plt.tight_layout()
         if save_verb:
             plt.savefig(f'./{res_path}/velocity_autocovariance/evolution_v2.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution_v2.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution_v2.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1693,7 +1692,7 @@ if velocity_autocovariance_verb:
         plt.tight_layout()
         if save_verb:
             plt.savefig(f'./{res_path}/velocity_autocovariance/evolution_v2_n.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution_v2_n.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution_v2_n.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -1799,7 +1798,7 @@ if rdf_verb:
         ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_b.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_b.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_b.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -1815,7 +1814,7 @@ if rdf_verb:
         ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_r.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_r.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_r.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -1832,7 +1831,7 @@ if rdf_verb:
         ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_br.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_br.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_br.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -1947,7 +1946,7 @@ if rdf_verb:
         ax.legend()
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_center.png', bbox_inches='tight' )
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center.pdf', bbox_inches='tight' )
+            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center.pdf', bbox_inches='tight' )
         if show_verb: 
             plt.show()
         else:
@@ -1963,7 +1962,7 @@ if rdf_verb:
         ax.set_aspect('auto')
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_center_heatmap.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center_heatmap.pdf', bbox_inches='tight')
+            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center_heatmap.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -2022,7 +2021,7 @@ if graph_verb:
     ax.set(xlabel = 'Factor', ylabel = 'Number of connected components', title = f'Number of connected components vs cutoff factor')
     ax.grid(linewidth = 0.2)
     ax.axvline(x = 1.5, color = 'r', linestyle = '--')
-    plt.savefig(f'./{pdf_res_path}/connected_components.pdf', bbox_inches='tight')
+    #plt.savefig(f'./{pdf_res_path}/connected_components.pdf', bbox_inches='tight')
     plt.show()
 
     factor = 1.5
@@ -2045,7 +2044,7 @@ if graph_verb:
     ax.set(xlim = (xmin, xmax), ylim = (ymax, ymin), title = f'Random Geometric Graph at {int(frame/fps)} s -- {system_name}', xlabel='x [px]', ylabel='y [px]')
     if save_verb:
         plt.savefig(f'./{res_path}/graph/random_geometric_graph_{factor}.png', bbox_inches='tight')
-        plt.savefig(f'./{pdf_res_path}/graph/random_geometric_graph_{factor}.pdf', bbox_inches='tight')
+        #plt.savefig(f'./{pdf_res_path}/graph/random_geometric_graph_{factor}.pdf', bbox_inches='tight')
     if show_verb:
         plt.show()
     else:
@@ -2130,7 +2129,7 @@ if graph_verb:
     ax.grid(linewidth=0.2)
     if save_verb:
         plt.savefig(f'./{res_path}/graph/n_clusters.png', bbox_inches='tight')
-        plt.savefig(f'./{pdf_res_path}/graph/n_clusters.pdf', bbox_inches='tight')
+        #plt.savefig(f'./{pdf_res_path}/graph/n_clusters.pdf', bbox_inches='tight')
     if show_verb:
         plt.show()
     else:
@@ -2151,7 +2150,7 @@ if graph_verb:
     ax.grid(linewidth = 0.2)
     if save_verb:
         plt.savefig(f'{res_path}/graph/scree_plot.png', bbox_inches='tight')
-        plt.savefig(f'{pdf_res_path}/graph/scree_plot.pdf', bbox_inches='tight')
+        #plt.savefig(f'{pdf_res_path}/graph/scree_plot.pdf', bbox_inches='tight')
     if show_verb:
         plt.show()
     else:
@@ -2179,7 +2178,7 @@ if graph_verb:
     plt.tight_layout()
     if save_verb:
         plt.savefig(f'{res_path}/graph/pca.png', bbox_inches='tight')
-        plt.savefig(f'{pdf_res_path}/graph/pca.png', bbox_inches='tight', dpi = 500)
+        #plt.savefig(f'{pdf_res_path}/graph/pca.png', bbox_inches='tight', dpi = 500)
     if show_verb:
         plt.show()
     else:
@@ -2201,7 +2200,7 @@ if graph_verb:
     fig.tight_layout()
     if save_verb:
         plt.savefig(f'{res_path}/graph/pca_components.png', bbox_inches='tight')
-        plt.savefig(f'{pdf_res_path}/graph/pca_components.pdf', bbox_inches='tight')
+        #plt.savefig(f'{pdf_res_path}/graph/pca_components.pdf', bbox_inches='tight')
     if show_verb:
         plt.show()
     else:
@@ -2226,7 +2225,7 @@ if graph_verb:
         imageio.mimsave(f'{res_path}/graph/pca.gif', images)
     if save_verb:
         plt.savefig(f'{res_path}/graph/pca_3d.png', bbox_inches='tight')
-        plt.savefig(f'{pdf_res_path}/graph/pca_3d.png', bbox_inches='tight', dpi = 500)
+        #plt.savefig(f'{pdf_res_path}/graph/pca_3d.png', bbox_inches='tight', dpi = 500)
     if 1:
         plt.show()
     else:

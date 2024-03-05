@@ -1,0 +1,38 @@
+Video has 540000 frames with a resolution of 640x480 and a framerate of 30 fps
+Number of Droplets: 50
+Number of Frames: 540000 at 30 fps --> 18000.00 s
+Windowed analysis args:
+window of 600.0 s, stride of 10.0 s --> 1740 steps
+Smoothing trajectories..
+Radius as seen from above and depth analysis...
+Blue droplets: r = 2.19 t^-0.02
+Red droplets: r = 2.17 t^-0.02
+Blue droplets: r = 0.15 exp(-t/4212.52) + 1.79
+Red droplets: r = 0.16 exp(-t/3665.88) + 1.78
+Mean Squared Displacement analysis...
+Blue droplets: a = 0.931 ± 0.001, K = 1.154 ± 0.007 mm²
+Red droplets:  a = 0.813 ± 0.001, K = 3.023 ± 0.01 mm²
+Max α blue: 1.654 ± 0.001
+Max D blue: 8.037 ± 0.03
+Min α blue: 0.283 ± 0.001
+Min D blue: 0.0 ± 0.0
+Max α red: 1.636 ± 0.0
+Max D red: 41.716 ± 0.251
+Min α red: -0.116 ± 0.0
+Min D red: 0.0 ± 0.0
+Done
+Speed distribution analysis...
+Blue droplets --> R² = 0.56 -- μ = 0.333 mm/s -- σ = 0.155 ± 0.003 mm/s
+Red droplets --> R² = 0.29 -- μ = 0.434 mm/s --σ = 0.215 ± 0.006 mm/s
+Blue droplets --> R² = 0.996 -- σ = 0.002 ± 0.0 mm/s -- b = 0.46 ± 0.004 -- A = 648.602 ± 17.981 
+Red droplets --> R² = 0.989 -- σ = 0.0 ± 0.0 mm/s -- b = 0.277 ± 0.005 -- A = 8959.06 ± 866.882
+Windowed speed distribution analysis...
+Turning angles analysis...
+Blue droplets σ = 0.795 ± 0.038, μ = -0.0002 ± 0.0461, r2 = 0.578
+Red droplets σ = 0.671 ± 0.035, μ = 0.0007 ± 0.0424, r2 = 0.546
+Blue droplets γ = 0.526 ± 0.018, μ = -0.0005 ± 0.0176, r2 = 0.88
+Red droplets γ = 0.445 ± 0.018, μ = 0.0003 ± 0.0181, r2 = 0.84
+Windowed turning angles analysis...
+Velocity autocovariance analysis...
+Windowed velocity autocovariance analysis...
+Radial distribution function analysis...
