@@ -291,7 +291,7 @@ def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_b
 
 
 @joblib.delayed
-def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho):
+def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops):
     coords = COORDS[frame*nDrops:(frame+1)*nDrops,:]
     kd = KDTree(coords)
     avg_n = np.zeros(len(rList))
@@ -306,11 +306,11 @@ def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho):
     rdf = avg_n/(np.pi*(dr**2 + 2*rList*dr)*rho)
     return rdf
 
-def get_rdf_center(frames, trajectories, r_c, rList, dr, rho):
+def get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops):
     COORDS = np.array(trajectories.loc[:,['x','y']])
     parallel = joblib.Parallel(n_jobs = -2)
     rdf_c = parallel(
-        rdf_center_frame(frame, COORDS, r_c, rList, dr, rho)
+        rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops)
         for frame in tqdm( frames )
     )
     rdf_c = np.array(rdf_c)

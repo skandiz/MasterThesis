@@ -4,7 +4,6 @@ import matplotlib.animation
 import matplotlib as mpl
 font = {'size' : 12}
 mpl.rc('font', **font)
-%matplotlib widget
 import cv2
 import numpy as np
 import pandas as pd
@@ -44,7 +43,7 @@ motif_verb = False
 #                                               IMPORT DATA
 #############################################################################################################
 if 1:
-    video_selection = '49b1r' #'49b1r_post_merge'
+    video_selection = '49b1r_post_merge'
     if video_selection == '25b25r-1':
         nDrops             = 50
         xmin, ymin, xmax, ymax = 95, 30, 535, 470    
@@ -72,7 +71,7 @@ if 1:
         original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
         red_particle_idx = np.array([15]).astype(int)
 
-    windowLenght = 300 # seconds
+    windowLenght = 600 # seconds
     path = trim_up_to_char(video_selection, '_')
     source_path        = f'../tracking/data/{path}.mp4'
     res_path           = f'./{video_selection}/results_{windowLenght}'
@@ -106,7 +105,7 @@ if 1:
     x_ballistic = np.linspace(1/fps, 1, int((1-1/fps)*fps)+1)
 
     # WINDOWED ANALYSIS PARAMETERS
-    window = 700*fps # 300 s
+    window = windowLenght*fps # 300 s
     stride = 10*fps # 10 s
     print('Windowed analysis args:')
     startFrames = np.arange(frames[0], nFrames-window, stride, dtype=int)
@@ -1667,47 +1666,6 @@ if velocity_autocovariance_verb:
         else:
             plt.close()
             
-        fig, (ax, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 4), sharex=True, sharey=True)
-        ax.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0], 'b', label = 'Blue droplets')
-        ax.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0] - vacf_b_std_wind[0, :]/vacf_b_wind[0, 0], 
-                        vacf_b_wind[0, :]/vacf_b_wind[0, 0] + vacf_b_std_wind[0, :]/vacf_b_wind[0, 0], color = 'b', alpha = 0.2)
-        ax.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[0, :]/vacf_r_wind[0, 0], 'r', label = 'Red droplets')
-        ax.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[0, :]/vacf_r_wind[0, 0] - vacf_r_std_wind[0, :]/vacf_r_wind[0, 0],
-                        vacf_r_wind[0, :]/vacf_r_wind[0, 0] + vacf_r_std_wind[0, :]/vacf_r_wind[0, 0], color = 'r', alpha = 0.2)
-        ax.set(xlabel = 'Lag time [s]', ylabel = r'VACF [$(mm/s)^2$]', title = f'Window [{startFrames[1]/fps} - {endFrames[1]/fps}] s')
-        ax1.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[135, :]/vacf_b_wind[135, 0], 'b', label = 'Blue droplets')
-        ax1.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[135, :]/vacf_b_wind[135, 0] - vacf_b_std_wind[135, :]/vacf_b_wind[135, 0],
-                        vacf_b_wind[135, :]/vacf_b_wind[135, 0] + vacf_b_std_wind[135, :]/vacf_b_wind[135, 0], color = 'b', alpha = 0.2)
-        ax1.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[135, :]/vacf_r_wind[135, 0], 'r', label = 'Red droplets')
-        ax1.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[135, :]/vacf_r_wind[135, 0] - vacf_r_std_wind[135, :]/vacf_r_wind[135, 0],
-                        vacf_r_wind[135, :]/vacf_r_wind[135, 0] + vacf_r_std_wind[135, :]/vacf_r_wind[135, 0], color = 'r', alpha = 0.2)
-        ax1.set(xlabel = 'Lag time [s]', ylabel = r'VACF [$(mm/s)^2$]', title = f'Window [{startFrames[135]/fps} - {endFrames[135]/fps}] s')
-        ax2.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[269, :]/vacf_b_wind[269, 0], 'b', label = 'Blue droplets')
-        ax2.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[269, :]/vacf_b_wind[269, 0] - vacf_b_std_wind[269, :]/vacf_b_wind[269, 0],
-                        vacf_b_wind[269, :]/vacf_b_wind[269, 0] + vacf_b_std_wind[269, :]/vacf_b_wind[269, 0], color = 'b', alpha = 0.2)
-        ax2.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[269, :]/vacf_r_wind[269, 0], 'r', label = 'Red droplets')
-        ax2.fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[269, :]/vacf_r_wind[269, 0] - vacf_r_std_wind[269, :]/vacf_r_wind[269, 0],
-                        vacf_r_wind[269, :]/vacf_r_wind[269, 0] + vacf_r_std_wind[269, :]/vacf_r_wind[269, 0], color = 'r', alpha = 0.2)
-        ax2.set(xlabel = 'Lag time [s]', ylabel = r'VACF [$(mm/s)^2$]', title = f'Window [{startFrames[269]/fps} - {endFrames[269]/fps}] s')
-        ax.legend()
-        ax1.legend()
-        ax2.legend()
-        ax.grid(linewidth = 0.2)
-        ax1.grid(linewidth = 0.2)
-        ax2.grid(linewidth = 0.2)
-        ax.set(xlim=(-1, 20))
-        ax1.set(xlim=(-1, 20))
-        ax2.set(xlim=(-1, 20))
-        plt.suptitle(f'Velocity autocovariance windowed - {system_name}')
-        plt.tight_layout()
-        if save_verb:
-            plt.savefig(f'./{res_path}/velocity_autocovariance/evolution_n.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/velocity_autocovariance/evolution_n.pdf', bbox_inches='tight')
-        if show_verb:
-            plt.show()
-        else:
-            plt.close()
-
         fig, axs = plt.subplots(2, 3, figsize=(15, 6), sharex=True, sharey=True)
         axs[0,0].plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0], 'b', label = 'Blue droplets')
         axs[0,0].fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0] - vacf_b_std_wind[0, :]/vacf_b_wind[0, 0], 
@@ -1807,8 +1765,8 @@ if rdf_verb:
         raise ValueError('run_analysis_verb must be True or False')
 
     if plot_verb:
-        v_min = np.min([rdf_b, rdf_r, rdf_br, rdf_rb])
-        v_max = np.max([rdf_b, rdf_r, rdf_br, rdf_rb])
+        v_min = np.min([rdf_b, rdf_r, rdf_br])
+        v_max = np.max([rdf_b, rdf_r, rdf_br])
 
         timearr = np.linspace(0, rdf_b.shape[0], 5)/fps
         timearr = timearr.astype(int)
@@ -1857,23 +1815,6 @@ if rdf_verb:
         if save_verb: 
             plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_br.png', bbox_inches='tight')
             plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_br.pdf', bbox_inches='tight')
-        if show_verb: 
-            plt.show()
-        else:
-            plt.close()
-
-
-        g_plot = rdf_rb.T
-        fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-        img = ax.imshow(g_plot, vmin = v_min, vmax = v_max)
-        ax.set(xticks = np.linspace(0, g_plot.shape[1], 5), yticks = np.linspace(0, g_plot.shape[0], 5))
-        ax.set(xticklabels = timearr, yticklabels = (np.linspace(0, 2*rDisk, 5)*pxDimension).astype(int))
-        ax.set(xlabel = 'Time [s]', ylabel = 'r [mm]', title = f'RDF r-b heatmap - {system_name}')
-        fig.colorbar(img, ax=ax)
-        ax.set_aspect('auto')
-        if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_rb.png', bbox_inches='tight')
-            plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_rb.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
         else:
@@ -1965,7 +1906,7 @@ if rdf_verb:
 
     if run_analysis_verb:
         print(print(f'Radial distribution function from center analysis...'))
-        rdf_c = get_rdf_center(frames, trajectories, r_c, rList, dr, rho)
+        rdf_c = get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops)
         rdf_c_df = pd.DataFrame(rdf_c)
         # string columns for parquet filetype
         rdf_c_df.columns = [str(i) for i in rList]

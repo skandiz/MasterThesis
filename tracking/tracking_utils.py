@@ -302,6 +302,7 @@ def lj_interaction(pos, epsilon, sigma, dt):
 #                                      SYNTHETIC DATASET GENERATION FUNCTIONS                                    #
 ##################################################################################################################
 
+
 def create_gaussian(center, img_width, img_height, sigma, ampl):
     center_x, center_y = center
     x = np.linspace(0, img_width-1, img_width)
@@ -310,6 +311,49 @@ def create_gaussian(center, img_width, img_height, sigma, ampl):
     gaussian = np.exp(-((X-center_x)**2 + (Y-center_y)**2) / (2.0 * sigma**2))
     return np.round(ampl*(gaussian / np.max(gaussian))).astype(np.uint8)
 
+def generate_synthetic_image(outer_radius, n_feature, height, width, rmin, rmax, color, gaussian_sigma, gaussian_amplitude, sharp_verb=False):
+    # create background image
+    image = np.random.randint(65, 75, (height, width), dtype=np.uint8)
+    # initialize mask
+    mask = np.zeros((height, width), dtype=np.uint8)
+    list_of_centers = []
+    list_of_distances = []
+
+    for i in range(n_feature):
+        while True:
+            # Generate a random position inside the outer circle 
+            theta = random.uniform(0, 2 * np.pi)
+            r = random.randint(0, outer_radius)
+            center = (int(width/2 + r * np.cos(theta)), int(height/2 + r * np.sin(theta)))
+
+            feature_radius = random.randint(rmin, rmax)
+
+            if not overlap_between_circles(list_of_centers, center, feature_radius, feature_radius):
+                list_of_centers.append([center, feature_radius])
+                break
+        #color = 110 #(random.randint(0, 255))
+        index = i + 1  # Assign unique index (starting from 1)
+        # Draw the circle on the image 
+        # lineType = 4 for 4-connected line, 8 for 8-connected line, LINE_AA for antialiased line
+        cv2.circle(image, center, feature_radius, color, -1, lineType=4) 
+
+        # draw circles as gaussian distribution
+        cv2.add(image, create_gaussian(center, width, height, gaussian_sigma, gaussian_amplitude))
+
+        # Draw the circle with its index on the mask
+        #draw_circle_with_index(mask, center, feature_radius, index)
+        cv2.circle(mask, center, feature_radius, (index), -1)
+        
+    # Draw the outer circle mimicking the petri dish
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2), 150) 
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2)-4, 150) 
+    if sharp_verb:
+        kernel = np.array([[0, -1, 0],
+                        [-1, 5,-1],
+                        [0, -1, 0]])
+        image = cv2.filter2D(image, ddepth=-1, kernel=kernel)
+    image = cv2.GaussianBlur(image, (5, 5), 2)
+    return image, mask
     
 @joblib.delayed
 def generate_synthetic_image_from_simulation_data_parallel(trajectories, frame, height, width, gaussian_sigma, gaussian_amplitude, color, sharp_verb=False):
