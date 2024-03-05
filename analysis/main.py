@@ -26,8 +26,7 @@ show_verb = False
 plot_verb = True
 animated_plot_verb = True
 save_verb = True
-run_analysis_verb = True
-
+run_analysis_verb = False
 
 ABP_verb = False
 radius_verb = True
@@ -35,7 +34,7 @@ msd_verb = True
 velocity_verb = True
 turning_angles_verb = True
 velocity_autocovariance_verb = True
-rdf_verb = True
+rdf_verb = False
 graph_verb = False
 motif_verb = False
 
@@ -71,13 +70,14 @@ if 1:
         original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
         red_particle_idx = np.array([15]).astype(int)
 
-    windowLenght = 600 # seconds
+    windowLenght = 300 # seconds
     path = trim_up_to_char(video_selection, '_')
     source_path        = f'../tracking/data/{path}.mp4'
     res_path           = f'./{video_selection}/results_{windowLenght}'
     pdf_res_path       = f'../../thesis_project/images/{video_selection}'
     analysis_data_path = f'./{video_selection}/analysis_data_{windowLenght}'
     system_name        = f'{video_selection} system'
+
 
     video = cv2.VideoCapture(source_path)
     video.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -105,10 +105,10 @@ if 1:
     x_ballistic = np.linspace(1/fps, 1, int((1-1/fps)*fps)+1)
 
     # WINDOWED ANALYSIS PARAMETERS
-    window = windowLenght*fps # 300 s
+    window = windowLenght*fps # windowLenght seconds
     stride = 10*fps # 10 s
     print('Windowed analysis args:')
-    startFrames = np.arange(frames[0], nFrames-window, stride, dtype=int)
+    startFrames = np.arange(frames[0], frames[-1]-window, stride, dtype=int)
     endFrames = startFrames + window
     nSteps = len(startFrames)
     print(f'window of {window/fps} s, stride of {stride/fps} s --> {nSteps} steps')
@@ -285,12 +285,13 @@ if radius_verb:
             plt.close()
 
         fig, ax = plt.subplots(1, 1, figsize = (10, 4))
-        ax.plot(startFrames/fps, mean_r_wind, 'k--', linewidth = 2, zorder=20)
+        ax.plot(startFrames/fps + windowLenght/2, mean_r_wind, 'k--', linewidth = 2, zorder=20)
         for i in range(nDrops):
             if i in red_particle_idx:
-                ax.plot(startFrames/fps, d_wind[:, i], 'r-', zorder=20, alpha = 1)
+                ax.plot(startFrames/fps + windowLenght/2, d_wind[:, i], 'r-', zorder=20, alpha = 1)
             else:
-                ax.plot(startFrames/fps, d_wind[:, i], 'b-', zorder=0, alpha = 0.5)
+                ax.plot(startFrames/fps + windowLenght/2, d_wind[:, i], 'b-', zorder=0, alpha = 0.5)
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.set(xlabel = "Window time [s]", ylabel = f"r [{dimension_units}]", title = f"Droplet radius by window time - {system_name}")
         ax.grid(linewidth = 0.2)
         ax.legend(["Mean", "Blue droplets", "Red droplets"])
@@ -465,28 +466,28 @@ if msd_verb:
     print('Min D red:', round(min_d_r, 3), '±', round(min_d_b_std, 3))
 
     if plot_verb:
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4))
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
-        ax.fill_between(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1] - fit_dict['pw_exp_wind_b'][:, 1, 1],     
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4), sharex = True)
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 1] - fit_dict['pw_exp_wind_b'][:, 1, 1],     
                             fit_dict['pw_exp_wind_b'][:, 0, 1] + fit_dict['pw_exp_wind_b'][:, 1, 1],
                             alpha=0.5, edgecolor='#F0FFFF', facecolor='#00FFFF')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets ')
-        ax.fill_between(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 1] - fit_dict['pw_exp_wind_r'][:, 1, 1],
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets ')
+        ax.fill_between(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 1] - fit_dict['pw_exp_wind_r'][:, 1, 1],
                             fit_dict['pw_exp_wind_r'][:, 0, 1] + fit_dict['pw_exp_wind_r'][:, 1, 1],
                             alpha=0.5, edgecolor='#F0FFFF', facecolor='#FF5A52')
-        ax.plot(startFrames/fps, np.ones(nSteps), 'k-')
+        ax.plot(startFrames/fps + windowLenght/2, np.ones(nSteps), 'k-')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         ax.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2), title = f'Power Law Exponents')
-
-        ax1.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax1.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
         ax1.set(xlabel = 'Window time [s]', title = f'Generalized Diffusion Coefficients')
         ax1.set_ylabel(r'$K{_\alpha, blue} \; [mm^2/s^\alpha]$', color = 'b')
         ax1.grid(linewidth = 0.2)
         ax1.yaxis.label.set_color('blue')
         ax1.tick_params(axis='y', colors='blue')
         ax2 = ax1.twinx()
-        ax2.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
+        ax2.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
         ax2.set_ylabel(r'$K{_\alpha, red} \; [mm^2/s^\alpha]$', color = 'r')
         ax2.yaxis.label.set_color('red')
         ax2.tick_params(axis='y', colors='red')
@@ -503,15 +504,16 @@ if msd_verb:
         # Power law exponents plot
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         ax.set_title(f'Power Law Exponents - {system_name}')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
-        ax.fill_between(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 1] - fit_dict['pw_exp_wind_b'][:, 1, 1],     
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 1] - fit_dict['pw_exp_wind_b'][:, 1, 1],     
                             fit_dict['pw_exp_wind_b'][:, 0, 1] + fit_dict['pw_exp_wind_b'][:, 1, 1],
                             alpha=0.5, edgecolor='#F0FFFF', facecolor='#00FFFF')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets ')
-        ax.fill_between(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 1] - fit_dict['pw_exp_wind_r'][:, 1, 1],
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets ')
+        ax.fill_between(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 1] - fit_dict['pw_exp_wind_r'][:, 1, 1],
                             fit_dict['pw_exp_wind_r'][:, 0, 1] + fit_dict['pw_exp_wind_r'][:, 1, 1],
                             alpha=0.5, edgecolor='#F0FFFF', facecolor='#FF5A52')
-        ax.plot(startFrames/fps, np.ones(nSteps), 'k-')
+        ax.plot(startFrames/fps + windowLenght/2, np.ones(nSteps), 'k-')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         ax.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2))
@@ -525,13 +527,14 @@ if msd_verb:
         
 
         # Generalized Diffusion Coefficients plot
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 4))
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 4),sharex = True)
         plt.suptitle(f'Generalized Diffusion Coefficients - {system_name}')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
         ax.set(xlabel = 'Window time [s]', ylabel = r'$K_\alpha$ [$mm^2/s^\alpha$]')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
-        ax1.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets ')
+        ax1.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets ')
         ax1.legend()
         ax1.grid(linewidth = 0.2)
         ax1.set(xlabel = 'Window time [s]')
@@ -547,9 +550,10 @@ if msd_verb:
         # Generalized Diffusion Coefficients plot
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
         plt.suptitle(f'Generalized Diffusion Coefficients - {system_name}')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
         ax.set(xlabel = 'Window time [s]', ylabel = r'$K_\alpha$ [$mm^2/s^\alpha$]')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         plt.tight_layout()
@@ -562,12 +566,13 @@ if msd_verb:
             plt.close()
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
-        ax.plot(startFrames/fps, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:, 0, 0], 'b-', alpha = 0.5, label = 'Blue droplets')
         ax.set(xlabel = 'Window time [s]')
         ax.set_ylabel(r'$K{_\alpha, blue} \; [mm^2/s^\alpha]$', color = 'b')
         ax.grid(linewidth = 0.2)
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax1 = ax.twinx()
-        ax1.plot(startFrames/fps, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
+        ax1.plot(startFrames/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:, 0, 0], 'r-', alpha = 0.5, label = 'Red droplets')
         ax1.set_ylabel(r'$K{_\alpha, red} \; [mm^2/s^\alpha]$', color = 'r')
         ax1.yaxis.label.set_color('red')
         ax1.tick_params(axis='y', colors='red')
@@ -595,11 +600,11 @@ if msd_verb:
             def update_graph(step):
                 for i in range(nDrops):
                     graphic_data[i].set_ydata(np.array(MSD_wind[step].iloc[:, i]))
-                    graphic_data2[i].set_data(startFrames[:step]/fps, pw_exp_wind[:step, i, 0, 1])
+                    graphic_data2[i].set_data(startFrames[:step]/fps + windowLenght/2, pw_exp_wind[:step, i, 0, 1])
                 title.set_text(f'Mean Squared Displacement - {system_name} - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s')
-                ax1.set_xlim(0, startFrames[step]/fps + 0.0001)
+                ax1.set_xlim(frames[0]/fps, startFrames[step]/fps + windowLenght/2 + 100)
                 return graphic_data, graphic_data2,
-            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s')
+            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window [{startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps}] s')
             graphic_data = []
             for i in range(nDrops):
                 if i in red_particle_idx:
@@ -611,19 +616,17 @@ if msd_verb:
             graphic_data2 = []
             for i in range(nDrops):
                 if i in red_particle_idx:
-                    graphic_data2.append(ax1.plot(startFrames[0]/fps, pw_exp_wind[0, i, 0, 1], color=colors[i], alpha = 0.3)[0])
+                    graphic_data2.append(ax1.plot(startFrames[0]/fps + windowLenght/2, pw_exp_wind[0, i, 0, 1], color=colors[i], alpha = 0.3)[0])
                 else:
-                    graphic_data2.append(ax1.plot(startFrames[0]/fps, pw_exp_wind[0, i, 0, 1], color=colors[i], alpha = 0.3)[0])
+                    graphic_data2.append(ax1.plot(startFrames[0]/fps + windowLenght/2, pw_exp_wind[0, i, 0, 1], color=colors[i], alpha = 0.3)[0])
             ax1.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2))
+            ax1.set_xlim(frames[0]/fps, startFrames[0]/fps + windowLenght/2 + 100)
             ax1.grid(linewidth = 0.2)
             plt.tight_layout()
             fig.canvas.mpl_connect('button_press_event', onClick)
             ani = matplotlib.animation.FuncAnimation(fig, update_graph, nSteps, interval = 5, blit=False)
             if save_verb: ani.save(f'./{res_path}/mean_squared_displacement/windowed_analysis/IMSD_wind.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-            if 0:
-                plt.show()
-            else:
-                plt.close()
+            plt.close()
 
 
             # Lower and Higher bounds for fill between 
@@ -661,13 +664,13 @@ if msd_verb:
                 verts[maxLagtime+2:-1, 1] = Y2_msd_r[step, :][::-1]
 
                 # update powerlaw exponents
-                line.set_data(startFrames[:step]/fps, fit_dict['pw_exp_wind_b'][:step, 0, 1])
-                line1.set_data(startFrames[:step]/fps, fit_dict['pw_exp_wind_r'][:step, 0, 1]) 
-                line2.set_data(startFrames[:step]/fps, np.ones(step)) 
-                ax1.set_xlim(0, (startFrames[step]+fps)/fps)
+                line.set_data(startFrames[:step]/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][:step, 0, 1])
+                line1.set_data(startFrames[:step]/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][:step, 0, 1]) 
+                line2.set_data(startFrames[:step]/fps + windowLenght/2, np.ones(step)) 
+                ax1.set_xlim(frames[0]/fps, startFrames[step]/fps + windowLenght/2 + 100)
                 return graphic_data, fill_graph, line, line1, 
 
-            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds')
+            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds')
             graphic_data = []
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_b[0][0], 'b-', alpha=0.5, label = 'Blue droplets')[0])
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_r[0][0], 'r-' , label = 'Red droplets')[0] )
@@ -676,11 +679,13 @@ if msd_verb:
 
             ax.set(xscale = 'log', yscale = 'log', ylabel = r'$\langle \Delta r^2 \rangle$ [$mm^2$]', xlabel = 'lag time $t$ [s]', ylim=(10**(-5), 10**5))
             ax.legend()
+            
             ax.grid(linewidth = 0.2)
-            line, = ax1.plot(startFrames[0]/fps, fit_dict['pw_exp_wind_b'][0, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
-            line1, = ax1.plot(startFrames[0]/fps, fit_dict['pw_exp_wind_r'][0, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets')
-            line2, = ax1.plot(startFrames[0]/fps, 1, 'k-')
+            line, = ax1.plot(startFrames[0]/fps + windowLenght/2, fit_dict['pw_exp_wind_b'][0, 0, 1], 'b-', alpha = 0.5, label = 'Blue droplets')
+            line1, = ax1.plot(startFrames[0]/fps + windowLenght/2, fit_dict['pw_exp_wind_r'][0, 0, 1], 'r-', alpha = 0.5, label = 'Red droplets')
+            line2, = ax1.plot(startFrames[0]/fps + windowLenght/2, 1, 'k-')
             ax1.legend()
+            ax1.set_xlim(frames[0]/fps, startFrames[0]/fps + windowLenght/2 + 100)
             ax1.grid(linewidth=0.2)
             ax1.set(xlabel = 'Window time [s]', ylabel = r'$\alpha$', ylim = (0, 2))
             plt.tight_layout()
@@ -724,11 +729,11 @@ if msd_verb:
                 verts[maxLagtime+2:-1, 1] = Y2_msd_r[step, :][::-1]
                 return graphic_data, fill_graph
 
-            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds')
+            title = ax.set_title(f'Mean Squared Displacement - {system_name} - window {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds')
             graphic_data = []
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_b[0][0], 'b-', alpha=0.5, label = 'Blue droplets')[0])
             graphic_data.append(ax.plot(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), EMSD_wind_r[0][0], 'r-' , label = 'Red droplets')[0] )
-            fill_graph = ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), Y1_msd_b[0], Y2_msd_b[0], alpha=0.5, edgecolor='#F0FFFF', facecolor='#00FFFF')
+            fill_graph  = ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), Y1_msd_b[0], Y2_msd_b[0], alpha=0.5, edgecolor='#F0FFFF', facecolor='#00FFFF')
             fill_graph2 = ax.fill_between(np.arange(1/fps, maxLagtime/fps + 1/fps, 1/fps), Y1_msd_r[0], Y2_msd_r[0], alpha=0.5, edgecolor='#FF5A52', facecolor='#FF5A52')
 
             ax.set(xscale = 'log', yscale = 'log', ylabel = r'$\langle \Delta r^2 \rangle$ [$mm^2$]', xlabel = 'lag time $t$ [s]', ylim=(10**(-5), 10**5))
@@ -739,6 +744,7 @@ if msd_verb:
             ani = matplotlib.animation.FuncAnimation(fig, update_graph, nSteps, interval = 5, blit=False)
             if save_verb: ani.save(f'./{res_path}/mean_squared_displacement/windowed_analysis/EMSD_wind_v2.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
             plt.close()
+
 
 #############################################################################################################
 #                                              VELOCITY ANALYSIS
@@ -787,16 +793,16 @@ if velocity_verb:
     print(f'Red droplets --> R² = {round(r2_red_g, 3)} -- σ = {round(sigma_red_g[0], 4)} ± {round(sigma_red_std_g[0], 4)} mm/s -- b = {round(sigma_red_g[1], 3)} ± {round(sigma_red_std_g[1], 3)} -- A = {round(sigma_red_g[2], 3)} ± {round(sigma_red_std_g[2], 3)}')
 
     if plot_verb:
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4))
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4), sharey=True, sharex = True)
         ax.hist(v_blue, bins = bin_borders, **default_kwargs_blue, label = 'Blue droplets')
         ax.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, sigma_blue), 'k-', label = f'$ σ= {sigma_blue[0]:.3f} \pm {sigma_blue_std[0]:.3f}$')
-        ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+        ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]')
         ax.legend()
         ax.grid(linewidth = 0.2)
 
         ax1.hist(v_red, bins = bin_borders, **default_kwargs_red, label = 'Red droplets')
         ax1.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, sigma_red), 'k-', label = f'$ σ = {sigma_red[0]:.3f} \pm {sigma_red_std[0]:.3f}$')
-        ax1.set(xlabel = f'v [{speed_units}]', xlim = (-.1, 5), ylim = (0, 5))
+        ax1.set(xlabel = f'v [{speed_units}]', xlim = (-.1, 5), ylim = (0, 7))
         ax1.legend()
         ax1.grid(linewidth = 0.2)
         plt.suptitle(f'Velocity distribution - MB fit - {system_name}')
@@ -809,15 +815,15 @@ if velocity_verb:
         else:
             plt.close()
         
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4))
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4), sharey=True, sharex = True)
         ax.hist(v_blue, bins = bin_borders, **default_kwargs_blue, label = 'Blue droplets')
         ax.plot(x_interval_for_fit, MB_2D_generalized(x_interval_for_fit, *sigma_blue_g), 'k-', label = f'$ σ= {sigma_blue_g[0]:.3f} \pm {sigma_blue_std_g[0]:.3f}$')
-        ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+        ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]')
         ax.legend()
         ax.grid(linewidth = 0.2)
         ax1.hist(v_red, bins = bin_borders, **default_kwargs_red, label = 'Red droplets')
         ax1.plot(x_interval_for_fit, MB_2D_generalized(x_interval_for_fit, *sigma_red_g), 'k-', label = f'$ σ = {sigma_red_g[0]:.3f} \pm {sigma_red_std_g[0]:.3f}$')
-        ax1.set(xlabel = f'v [{speed_units}]', xlim = (-.1, 5), ylim = (0, 5))
+        ax1.set(xlabel = f'v [{speed_units}]', xlim = (-.1, 5), ylim = (0, 7))
         ax1.legend()
         ax1.grid(linewidth = 0.2)
         plt.suptitle(f'Velocity distribution - Generalized MB fit - {system_name}')
@@ -829,7 +835,7 @@ if velocity_verb:
             plt.show()
         else:
             plt.close()
- 
+
     print('Windowed speed distribution analysis...')
     v_blue_wind, v_red_wind = speed_windowed(nDrops, nSteps, startFrames, endFrames,\
                                              red_particle_idx, trajectories, subsample_factor, fps, )
@@ -873,8 +879,9 @@ if velocity_verb:
 
     if plot_verb:
         fig, ax = plt.subplots(1, 1, figsize = (12, 4))
-        ax.plot(startFrames/fps, v_blue_wind_mean, 'b-',label = 'Blue droplets')
-        ax.plot(startFrames/fps, v_red_wind_mean, 'r-', label = 'Red droplets')
+        ax.plot(startFrames/fps + windowLenght/2, v_blue_wind_mean, 'b-',label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, v_red_wind_mean, 'r-', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.set(xlabel = 'Window time [s]', ylabel = f'v [{speed_units}]', title=f'Windowed mean speed - {system_name}')
         ax.legend()
@@ -886,14 +893,16 @@ if velocity_verb:
         else:
             plt.close()
 
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4))
-        ax.plot(startFrames/fps, r2_blue_wind, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_wind, 'r', label = 'Red droplets')
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize=(12, 4), sharex=True)
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_wind, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_wind, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = r'$R^2$')
-        ax1.errorbar(startFrames/fps, blue_fit_wind[:, 0], yerr = blue_fit_wind[:, 1], fmt = 'b', label = 'Blue droplets')
-        ax1.errorbar(startFrames/fps, red_fit_wind[:, 0], yerr = red_fit_wind[:, 1], fmt = 'r', label = 'Red droplets')
+        test = ax1.errorbar(startFrames/fps + windowLenght/2, blue_fit_wind[:, 0], yerr = blue_fit_wind[:, 1], fmt = 'b', label = 'Blue droplets')
+        ax1.set(ylim = (min(blue_fit_wind[:, 0]*0.8), max(blue_fit_wind[:, 0]*1.2)))
+        ax1.errorbar(startFrames/fps + windowLenght/2, red_fit_wind[:, 0], yerr = red_fit_wind[:, 1], fmt = 'r', label = 'Red droplets')
         ax1.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = r'$\sigma$')
         ax1.legend()
         ax1.grid(linewidth = 0.2)
@@ -907,9 +916,10 @@ if velocity_verb:
         else:
             plt.close()
 
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(startFrames/fps, r2_blue_wind, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_wind, 'r', label = 'Red droplets')
+        fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_wind, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_wind, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² of the fit of the velocity distribution - {system_name}')
@@ -922,10 +932,12 @@ if velocity_verb:
             plt.close()
 
         # Sigma of velocity distribution plot
-        fig, ax = plt.subplots(1, 1, figsize = (10, 4), sharex=True)
-        ax.errorbar(startFrames/fps, blue_fit_wind[:, 0], yerr = blue_fit_wind[:, 1], fmt = 'b', label = 'Blue droplets')
-        ax.errorbar(startFrames/fps, red_fit_wind[:, 0], yerr = red_fit_wind[:, 1], fmt = 'r', label = 'Red droplets')
+        fig, ax = plt.subplots(1, 1, figsize = (10, 4))
+        ax.errorbar(startFrames/fps + windowLenght/2, blue_fit_wind[:, 0], yerr = blue_fit_wind[:, 1], fmt = 'b', label = 'Blue droplets')
+        ax.errorbar(startFrames/fps + windowLenght/2, red_fit_wind[:, 0], yerr = red_fit_wind[:, 1], fmt = 'r', label = 'Red droplets')
         ax.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = f'Sigma of MB distribution - {system_name}')
+        ax.set_ylim(min(blue_fit_wind[:, 0]*0.8), max(blue_fit_wind[:, 0]*1.2))
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         if save_verb: 
@@ -937,11 +949,12 @@ if velocity_verb:
             plt.close()
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 4))
-        ax.plot(startFrames/fps, r2_blue_g_wind, 'b', label = 'Generalized fit')
-        ax.plot(startFrames/fps, r2_blue_wind, 'b--', label = 'Maxwell-Boltzmann fit')
-        ax.plot(startFrames/fps, r2_red_g_wind, 'r', label = 'Generalized fit')
-        ax.plot(startFrames/fps, r2_red_wind, 'r--', label = 'Maxwell-Boltzmann fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_g_wind, 'b', label = 'Generalized fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_wind, 'b--', label = 'Maxwell-Boltzmann fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_g_wind, 'r', label = 'Generalized fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_wind, 'r--', label = 'Maxwell-Boltzmann fit')
         ax.set(ylabel = 'R2', xlabel = 'Window time [s]', title = f'R2 confront with MB Generalized fit - {system_name}')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         if save_verb: 
@@ -952,18 +965,19 @@ if velocity_verb:
         else:
             plt.close()
 
-        fig, (ax, ax1, ax2) = plt.subplots(1, 3, figsize=(12, 4))
-        ax.plot(startFrames/fps, blue_fit_wind_g[:, 0], 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, red_fit_wind_g[:, 0], 'r', label = 'Red droplets')
+        fig, (ax, ax1, ax2) = plt.subplots(1, 3, figsize=(12, 4), sharex=True)
+        ax.plot(startFrames/fps + windowLenght/2, blue_fit_wind_g[:, 0], 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, red_fit_wind_g[:, 0], 'r', label = 'Red droplets')
         ax.set(xlabel = 'Window time [s]', ylabel = r'$\sigma$')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
-        ax1.plot(startFrames/fps, blue_fit_wind_g[:, 1], 'b', label = 'Blue droplets')
-        ax1.plot(startFrames/fps, red_fit_wind_g[:, 1], 'r', label = 'Red droplets')
+        ax1.plot(startFrames/fps + windowLenght/2, blue_fit_wind_g[:, 1], 'b', label = 'Blue droplets')
+        ax1.plot(startFrames/fps + windowLenght/2, red_fit_wind_g[:, 1], 'r', label = 'Red droplets')
         ax1.set(xlabel = 'Window time [s]', ylabel = r'$\beta$')
         ax1.grid(linewidth = 0.2)
-        ax2.plot(startFrames/fps, blue_fit_wind_g[:, 2], 'b', label = 'Blue droplets')
-        ax2.plot(startFrames/fps, red_fit_wind_g[:, 2], 'r', label = 'Red droplets')
+        ax2.plot(startFrames/fps + windowLenght/2, blue_fit_wind_g[:, 2], 'b', label = 'Blue droplets')
+        ax2.plot(startFrames/fps + windowLenght/2, red_fit_wind_g[:, 2], 'r', label = 'Red droplets')
         ax2.grid(linewidth = 0.2)
         ax2.set(xlabel = 'Window time [s]', ylabel = r'$A$')
         plt.suptitle(f'Generalized MB fit parameters evolution - {system_name}')
@@ -975,10 +989,9 @@ if velocity_verb:
             plt.show()
         else:
             plt.close()
-        
-        if animated_plot_verb:
 
-            fig, (ax, ax1) = plt.subplots(2, 1, figsize=(8, 5))
+        if animated_plot_verb:
+            fig, (ax, ax1) = plt.subplots(2, 1, figsize = (8, 5), sharex=True, sharey=True)
             anim_running = True
 
             def onClick(event):
@@ -1014,19 +1027,18 @@ if velocity_verb:
                 return animate
 
             _, _, bar_container = ax.hist(v_blue_wind[0], bin_borders, **default_kwargs_blue, label='Blue droplets')
-            title = ax.set_title(f'{system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds  - {system_name}')
+            title = ax.set_title(f'{system_name} - window {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds  - {system_name}')
             line, = ax.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, blue_fit_wind[0, 0]), label = 'MB fit')
-            ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+            ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]')
             ax.grid(linewidth = 0.2)
             ax.legend()
 
             _, _, bar_container2 = ax1.hist(v_red_wind[0], bin_borders,  **default_kwargs_red, label='Red droplets')
-            #title2 = ax1.set_title(f'Red droplets velocity pdf {startFrames[0]/fps} - {endFrames[0]/fps} seconds')
+            #title2 = ax1.set_title(f'Red droplets velocity pdf {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds')
             line1, = ax1.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, red_fit_wind[0, 0]), label = 'MB fit')
-            ax1.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+            ax1.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 8))
             ax1.legend()
             ax1.grid(linewidth = 0.2)
-
             plt.tight_layout()
             fig.canvas.mpl_connect('button_press_event', onClick)
             ani = matplotlib.animation.FuncAnimation(fig, prepare_animation(bar_container, bar_container2), nSteps, repeat=True, blit=False)
@@ -1036,9 +1048,9 @@ if velocity_verb:
             else:
                 plt.close()
 
-            fig, (ax, ax1) = plt.subplots(2, 1, figsize=(8, 5))
-            anim_running = True
 
+            fig, (ax, ax1) = plt.subplots(2, 1, figsize=(8, 5), sharex=True, sharey=True)
+            anim_running = True
             def onClick(event):
                 global anim_running
                 if anim_running:
@@ -1048,46 +1060,37 @@ if velocity_verb:
                     ani.event_source.start()
                     anim_running = True
 
-
             def prepare_animation(bar_container, bar_container2):
                 def animate(frame):
                     # update titles
                     title.set_text(f'Windowed speed distribution - {system_name} - [{startFrames[frame]/fps} - {endFrames[frame]/fps}] s')
-
                     # update histogram 1
                     n, _ = np.histogram(v_blue_wind[frame], bin_borders, density = True)
                     for count, rect in zip(n, bar_container.patches):
                         rect.set_height(count)
-                    
                     line.set_ydata(MB_2D(x_interval_for_fit, blue_fit_wind[frame, 0]))
-
                     line1.set_ydata(MB_2D_generalized(x_interval_for_fit, *blue_fit_wind_g[frame]))
-
                     # update histogram 2
                     n2, _ = np.histogram(v_red_wind[frame], bin_borders, density = True)
                     for count2, rect2 in zip(n2, bar_container2.patches):
                         rect2.set_height(count2)
-                        
                     line2.set_ydata(MB_2D(x_interval_for_fit, red_fit_wind[frame, 0]))
-
                     line3.set_ydata(MB_2D_generalized(x_interval_for_fit,  *red_fit_wind_g[frame]))
-                    
-
                     return bar_container.patches, bar_container2.patches
                 return animate
 
             _, _, bar_container = ax.hist(v_blue_wind[0], bin_borders, **default_kwargs_blue, label='Blue droplets')
-            title = ax.set_title(f'Windowed speed distribution - {system_name} - [{startFrames[0]/fps} - {endFrames[0]/fps}] s')
+            title = ax.set_title(f'Windowed speed distribution - {system_name} - [{startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps}] s')
             line, = ax.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, blue_fit_wind[0, 0]), label = '2D MB fit')
             line1, = ax.plot(x_interval_for_fit, MB_2D_generalized(x_interval_for_fit,  *blue_fit_wind_g[0]), label='Generalized 2D MB fit')
-            ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+            ax.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]')
             ax.grid(linewidth = 0.2)
             ax.legend()
 
             _, _, bar_container2 = ax1.hist(v_red_wind[0], bin_borders,  **default_kwargs_red, label='Red droplets')
             line2, = ax1.plot(x_interval_for_fit, MB_2D(x_interval_for_fit, red_fit_wind[0, 0]), label='2D MB fit')
             line3, = ax1.plot(x_interval_for_fit, MB_2D_generalized(x_interval_for_fit,  *red_fit_wind_g[0]), label = 'Generalized 2D MB fit')
-            ax1.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 5))
+            ax1.set(xlabel = f'v [{speed_units}]', ylabel = 'pdf [s/mm]', xlim = (-.1, 5), ylim = (0, 8))
             ax1.grid(linewidth = 0.2)
             ax1.legend()
 
@@ -1232,19 +1235,20 @@ if turning_angles_verb:
         r2_red_lorentzian[k] = 1 - (np.sum((y - y_fit) ** 2) / np.sum((y - np.mean(y)) ** 2))
 
     if plot_verb: 
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4))
-        ax.plot(startFrames/fps, r2_blue_gaussian, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_gaussian, 'r', label = 'Red droplets')
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4), sharex = True)
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_gaussian, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_gaussian, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.grid(linewidth = 0.2)
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = r'$R^2$')
-        ax1.plot(startFrames/fps, blue_fit_wind_turn_gaussian[:, 0, 0], 'b', label='Blue droplets')
-        ax1.fill_between(startFrames/fps, blue_fit_wind_turn_gaussian[:, 0, 0] - blue_fit_wind_turn_gaussian[:, 1, 0],
+        ax1.plot(startFrames/fps + windowLenght/2, blue_fit_wind_turn_gaussian[:, 0, 0], 'b', label='Blue droplets')
+        ax1.fill_between(startFrames/fps + windowLenght/2, blue_fit_wind_turn_gaussian[:, 0, 0] - blue_fit_wind_turn_gaussian[:, 1, 0],
                         blue_fit_wind_turn_gaussian[:, 0, 0] + blue_fit_wind_turn_gaussian[:, 1, 0], color = 'b', alpha = 0.2)
         ax1.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = r'$\sigma$')
-        ax1.plot(startFrames/fps, red_fit_wind_turn_gaussian[:, 0, 0], 'r', label = 'Red droplets')
-        ax1.fill_between(startFrames/fps, red_fit_wind_turn_gaussian[:, 0, 0] - red_fit_wind_turn_gaussian[:, 1, 0],
+        ax1.plot(startFrames/fps + windowLenght/2, red_fit_wind_turn_gaussian[:, 0, 0], 'r', label = 'Red droplets')
+        ax1.fill_between(startFrames/fps + windowLenght/2, red_fit_wind_turn_gaussian[:, 0, 0] - red_fit_wind_turn_gaussian[:, 1, 0],
                             red_fit_wind_turn_gaussian[:, 0, 0] + red_fit_wind_turn_gaussian[:, 1, 0], color='r', alpha=0.2)
         ax1.legend()
         ax1.grid(linewidth = 0.2)
@@ -1258,9 +1262,10 @@ if turning_angles_verb:
         else:
             plt.close()
 
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(startFrames/fps, r2_blue_gaussian, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_gaussian, 'r', label = 'Red droplets')
+        fig, ax = plt.subplots(1, 1, figsize = (8, 4))
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_gaussian, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_gaussian, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.grid(linewidth = 0.2)
@@ -1274,14 +1279,15 @@ if turning_angles_verb:
             plt.close()
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 4), sharex=True)
-        ax.plot(startFrames/fps, blue_fit_wind_turn_gaussian[:, 0, 0], 'b', label='Blue droplets')
-        ax.fill_between(startFrames/fps, blue_fit_wind_turn_gaussian[:, 0, 0] - blue_fit_wind_turn_gaussian[:, 1, 0],
+        ax.plot(startFrames/fps + windowLenght/2, blue_fit_wind_turn_gaussian[:, 0, 0], 'b', label='Blue droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, blue_fit_wind_turn_gaussian[:, 0, 0] - blue_fit_wind_turn_gaussian[:, 1, 0],
                         blue_fit_wind_turn_gaussian[:, 0, 0] + blue_fit_wind_turn_gaussian[:, 1, 0], color = 'b', alpha = 0.2)
-        ax.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = f'Sigma of gaussian distribution - {system_name}')
-
-        ax.plot(startFrames/fps, red_fit_wind_turn_gaussian[:, 0, 0], 'r', label = 'Red droplets')
-        ax.fill_between(startFrames/fps, red_fit_wind_turn_gaussian[:, 0, 0] - red_fit_wind_turn_gaussian[:, 1, 0],
+        
+        ax.plot(startFrames/fps + windowLenght/2, red_fit_wind_turn_gaussian[:, 0, 0], 'r', label = 'Red droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, red_fit_wind_turn_gaussian[:, 0, 0] - red_fit_wind_turn_gaussian[:, 1, 0],
                             red_fit_wind_turn_gaussian[:, 0, 0] + red_fit_wind_turn_gaussian[:, 1, 0], color='r', alpha=0.2)
+        ax.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = f'Sigma of gaussian distribution - {system_name}')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         if save_verb: 
@@ -1292,13 +1298,14 @@ if turning_angles_verb:
         else:
             plt.close()
 
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(startFrames/fps, r2_blue_lorentzian, 'b', label = 'Lorentzian Fit')
-        ax.plot(startFrames/fps, r2_red_lorentzian, 'r', label = 'Lorentzian fit') 
-        ax.plot(startFrames/fps, r2_blue_gaussian, 'b--', label = 'Gaussian Fit')
-        ax.plot(startFrames/fps, r2_red_gaussian, 'r--', label = 'Gaussian Fit')
+        fig, ax = plt.subplots(1, 1, figsize = (10, 4))
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_lorentzian, 'b', label = 'Lorentzian Fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_lorentzian, 'r', label = 'Lorentzian fit') 
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_gaussian, 'b--', label = 'Gaussian Fit')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_gaussian, 'r--', label = 'Gaussian Fit')
         ax.grid(linewidth = 0.2)
         ax.legend()
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² confront fit of the turning angles distribution - {system_name}')
         if save_verb: 
             plt.savefig(f'./{res_path}/turning_angles/r2_confront.png', bbox_inches='tight')
@@ -1308,21 +1315,21 @@ if turning_angles_verb:
         else:
             plt.close()
             
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4))
-        ax.plot(startFrames/fps, r2_blue_lorentzian, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_lorentzian, 'r', label = 'Red droplets')
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (12, 4), sharex=True)
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_lorentzian, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_lorentzian, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.grid(linewidth = 0.2)
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = r'$R^2$')
-
-        ax1.plot(startFrames/fps, blue_fit_wind_turn_lorentzian[:, 0, 0], 'b', label='Blue droplets')
-        ax1.fill_between(startFrames/fps, blue_fit_wind_turn_lorentzian[:, 0, 0] - blue_fit_wind_turn_lorentzian[:, 1, 0],
+        ax1.plot(startFrames/fps + windowLenght/2, blue_fit_wind_turn_lorentzian[:, 0, 0], 'b', label='Blue droplets')
+        ax1.fill_between(startFrames/fps + windowLenght/2, blue_fit_wind_turn_lorentzian[:, 0, 0] - blue_fit_wind_turn_lorentzian[:, 1, 0],
                         blue_fit_wind_turn_lorentzian[:, 0, 0] + blue_fit_wind_turn_lorentzian[:, 1, 0], color = 'b', alpha = 0.2)
         ax1.set(ylabel = r'$\sigma \; [mm/s]$', xlabel = 'Window time [s]', title = r'$\gamma$')
 
-        ax1.plot(startFrames/fps, red_fit_wind_turn_lorentzian[:, 0, 0], 'r', label = 'Red droplets')
-        ax1.fill_between(startFrames/fps, red_fit_wind_turn_lorentzian[:, 0, 0] - red_fit_wind_turn_lorentzian[:, 1, 0],
+        ax1.plot(startFrames/fps + windowLenght/2, red_fit_wind_turn_lorentzian[:, 0, 0], 'r', label = 'Red droplets')
+        ax1.fill_between(startFrames/fps + windowLenght/2, red_fit_wind_turn_lorentzian[:, 0, 0] - red_fit_wind_turn_lorentzian[:, 1, 0],
                             red_fit_wind_turn_lorentzian[:, 0, 0] + red_fit_wind_turn_lorentzian[:, 1, 0], color='r', alpha=0.2)
         ax1.legend()
         ax1.grid(linewidth = 0.2)
@@ -1336,9 +1343,10 @@ if turning_angles_verb:
         else:
             plt.close()
         
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(startFrames/fps, r2_blue_lorentzian, 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, r2_red_lorentzian, 'r', label = 'Red droplets')
+        fig, ax = plt.subplots(1 ,1, figsize = (8, 4))
+        ax.plot(startFrames/fps + windowLenght/2, r2_blue_lorentzian, 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, r2_red_lorentzian, 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.grid(linewidth = 0.2)
         ax.legend()
         ax.set(xlabel = 'Window time [s]', ylabel = r'$R^2$', title = f'R² of the Lorentzian fit of the turning angles distribution - {system_name}')
@@ -1350,15 +1358,16 @@ if turning_angles_verb:
         else:
             plt.close()
 
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4), sharex=True)
-        ax.plot(startFrames/fps, blue_fit_wind_turn_lorentzian[:, 0, 0], 'b', label='Blue droplets')
-        ax.fill_between(startFrames/fps, blue_fit_wind_turn_lorentzian[:, 0, 0] - blue_fit_wind_turn_lorentzian[:, 1, 0],
+        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        ax.plot(startFrames/fps + windowLenght/2, blue_fit_wind_turn_lorentzian[:, 0, 0], 'b', label='Blue droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, blue_fit_wind_turn_lorentzian[:, 0, 0] - blue_fit_wind_turn_lorentzian[:, 1, 0],
                         blue_fit_wind_turn_lorentzian[:, 0, 0] + blue_fit_wind_turn_lorentzian[:, 1, 0], color = 'b', alpha = 0.2)
-        ax.set(ylabel = r'$\gamma \; [mm/s]$', xlabel = 'Window time [s]', title = f'Gamma of Lorentzian distribution - {system_name}')
-
-        ax.plot(startFrames/fps, red_fit_wind_turn_lorentzian[:, 0, 0], 'r', label = 'Red droplets')
-        ax.fill_between(startFrames/fps, red_fit_wind_turn_lorentzian[:, 0, 0] - red_fit_wind_turn_lorentzian[:, 1, 0],
+        
+        ax.plot(startFrames/fps + windowLenght/2, red_fit_wind_turn_lorentzian[:, 0, 0], 'r', label = 'Red droplets')
+        ax.fill_between(startFrames/fps + windowLenght/2, red_fit_wind_turn_lorentzian[:, 0, 0] - red_fit_wind_turn_lorentzian[:, 1, 0],
                             red_fit_wind_turn_lorentzian[:, 0, 0] + red_fit_wind_turn_lorentzian[:, 1, 0], color='r', alpha=0.2)
+        ax.set(ylabel = r'$\gamma \; [mm/s]$', xlabel = 'Window time [s]', title = f'Gamma of Lorentzian distribution - {system_name}')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.legend()
         ax.grid(linewidth = 0.2)
         if save_verb: 
@@ -1395,7 +1404,7 @@ if turning_angles_verb:
                 return animate
             _, _, bar_container = ax.hist(theta_red_wind[0], bin_borders_turn, **default_kwargs_blue, label='Blue droplets')
             line, = ax.plot(x_interval_for_fit_turn, normal_distr(x_interval_for_fit_turn, *blue_fit_wind_turn_gaussian[0, 0]), label='fit')
-            title = ax.set_title(f'Turning angles pdf - {system_name} - window {startFrames[0]/fps} - {endFrames[0]/fps} seconds - {system_name}')
+            title = ax.set_title(f'Turning angles pdf - {system_name} - window {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds - {system_name}')
             ax.set(ylabel = 'pdf', ylim = (0, 4))
             ax.set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], [r'-$\pi$', r'$-\frac{\pi}{2}$', '$0$', r'$\frac{\pi}{2}$', r'$\pi$'])
             ax.grid(linewidth = 0.2)
@@ -1445,7 +1454,7 @@ if turning_angles_verb:
             line, = ax.plot(x_interval_for_fit_turn, lorentzian_distr(x_interval_for_fit_turn, *blue_fit_wind_turn_lorentzian[0, 0]), label='Lorentzian fit')
             line1, = ax.plot(x_interval_for_fit_turn, normal_distr(x_interval_for_fit_turn, *blue_fit_wind_turn_gaussian[0, 0]), label='Gaussian fit')
 
-            title = ax.set_title(f'Turning angles distribution - {system_name} - [{startFrames[0]/fps} - {endFrames[0]/fps}] s')
+            title = ax.set_title(f'Turning angles distribution - {system_name} - [{startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps}] s')
             ax.set(ylabel = 'pdf', ylim = (0, 3))
             ax.set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], [r'-$\pi$', r'$-\frac{\pi}{2}$', '$0$', r'$\frac{\pi}{2}$', r'$\pi$'])
             ax.grid(linewidth = 0.2)
@@ -1466,6 +1475,7 @@ if turning_angles_verb:
                 plt.show()
             else:
                 plt.close()
+
 
 #############################################################################################################
 #                                              VACF ANALYSIS
@@ -1507,17 +1517,27 @@ if velocity_autocovariance_verb:
         vacf_b_std_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_b_std_wind.parquet')
         vacf_r_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_r_wind.parquet')
         vacf_r_std_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_r_std_wind.parquet')
+        vacf_b_wind = np.array(vacf_b_wind)
+        vacf_b_std_wind = np.array(vacf_b_std_wind)
+        vacf_r_wind = np.array(vacf_r_wind)
+        vacf_r_std_wind = np.array(vacf_r_std_wind)
     else:
         vacf_b_wind     = pd.read_parquet(f'./{analysis_data_path}/vacf/vacf_b_wind.parquet')
         vacf_b_std_wind = pd.read_parquet(f'./{analysis_data_path}/vacf/vacf_b_std_wind.parquet')
         vacf_r_wind     = pd.read_parquet(f'./{analysis_data_path}/vacf/vacf_r_wind.parquet')
         vacf_r_std_wind = pd.read_parquet(f'./{analysis_data_path}/vacf/vacf_r_std_wind.parquet')
+        vacf_b_wind = np.array(vacf_b_wind)
+        vacf_b_std_wind = np.array(vacf_b_std_wind)
+        vacf_r_wind = np.array(vacf_r_wind)
+        vacf_r_std_wind = np.array(vacf_r_std_wind)
+
 
     if plot_verb:
         # Velocity Variance
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(startFrames/fps, vacf_b_wind['0'], 'b', label = 'Blue droplets')
-        ax.plot(startFrames/fps, vacf_r_wind['0'], 'r', label = 'Red droplets')
+        fig, ax = plt.subplots(1, 1, figsize = (8, 4))
+        ax.plot(startFrames/fps + windowLenght/2, vacf_b_wind[:, 0], 'b', label = 'Blue droplets')
+        ax.plot(startFrames/fps + windowLenght/2, vacf_r_wind[:, 0], 'r', label = 'Red droplets')
+        ax.set_xlim(int(frames[0]/fps), int(frames[-1]/fps))
         ax.set(title = f'Time evolution of velocity variance - {system_name}', ylabel = '$\sigma$', xlabel = 'Window Time [s]')
         ax.grid(linewidth = 0.2)
         ax.legend()
@@ -1528,48 +1548,6 @@ if velocity_autocovariance_verb:
             plt.show()
         else: 
             plt.close()
-
-        # Animated Plots
-        if animated_plot_verb:
-            fig = plt.figure(figsize=(8, 5))
-            anim_running = True
-            def onClick(event):
-                global anim_running
-                if anim_running:
-                    ani.event_source.stop()
-                    anim_running = False
-                else:
-                    ani.event_source.start()
-                    anim_running = True
-            def update_graph(step):
-                line.set_ydata(vacf_b_wind.iloc[step]/vacf_b_wind.iloc[step]['0'])
-                title.set_text(f'Velocity autocorrelation - {system_name} - window [{startFrames[step]/fps} - {endFrames[step]/fps}] s')
-                line1.set_ydata(vacf_r_wind.iloc[step]/vacf_r_wind.iloc[step]['0'])
-                return line, line1,
-            ax = fig.add_subplot(211)
-            title = ax.set_title(f'Velocity autocorrelation - {system_name} - window [{startFrames[0]/fps} - {endFrames[0]/fps}] s')
-            line, = ax.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind.iloc[0]/vacf_b_wind.iloc[0]['0'], 'b-', label = 'Blue droplets')
-            ax.set(ylabel = r'vacf [$(mm/s)^2$]', xlabel = 'lag time $t$ [s]', xlim = (-1, 20), ylim = (-0.5, 1.1))
-            ax.grid(linewidth = 0.2)
-            ax.legend()
-            ax1 = fig.add_subplot(212)
-            line1, = ax1.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind.iloc[0]/vacf_r_wind.iloc[0]['0'], 'r-', label = 'Red droplets')
-            ax1.set(ylabel = r'vacf [$(mm/s)^2$]', xlabel = 'lag time $t$ [s]', xlim = (-1, 20), ylim = (-0.5, 1.1))
-            ax1.grid(linewidth = 0.2)
-            ax1.legend()
-            plt.tight_layout()
-            fig.canvas.mpl_connect('button_press_event', onClick)
-            ani = matplotlib.animation.FuncAnimation(fig, update_graph, nSteps, interval = 5, blit=False)
-            if save_verb: ani.save(f'./{res_path}/velocity_autocovariance/vacf_wind.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-            if show_verb:
-                plt.show()
-            else:
-                plt.close()
-
-        vacf_b_wind = np.array(vacf_b_wind)
-        vacf_b_std_wind = np.array(vacf_b_std_wind)
-        vacf_r_wind = np.array(vacf_r_wind)
-        vacf_r_std_wind = np.array(vacf_r_std_wind)
         
         fig, (ax, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 4))
         ax.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0], 'b', label = 'Blue droplets')
@@ -1665,7 +1643,7 @@ if velocity_autocovariance_verb:
             plt.show()
         else:
             plt.close()
-            
+
         fig, axs = plt.subplots(2, 3, figsize=(15, 6), sharex=True, sharey=True)
         axs[0,0].plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0], 'b', label = 'Blue droplets')
         axs[0,0].fill_between(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0] - vacf_b_std_wind[0, :]/vacf_b_wind[0, 0], 
@@ -1718,6 +1696,44 @@ if velocity_autocovariance_verb:
             plt.show()
         else:
             plt.close()
+
+        # Animated Plots
+        if animated_plot_verb:
+            fig = plt.figure(figsize=(8, 5))
+            anim_running = True
+            def onClick(event):
+                global anim_running
+                if anim_running:
+                    ani.event_source.stop()
+                    anim_running = False
+                else:
+                    ani.event_source.start()
+                    anim_running = True
+            def update_graph(step):
+                line.set_ydata(vacf_b_wind[step, :]/vacf_b_wind[step, 0])
+                title.set_text(f'Velocity autocorrelation - {system_name} - window [{startFrames[step]/fps + windowLenght/2} - {endFrames[step]/fps}] s')
+                line1.set_ydata(vacf_r_wind[step, :]/vacf_r_wind[step, 0])
+                return line, line1,
+            ax = fig.add_subplot(211)
+            title = ax.set_title(f'Velocity autocorrelation - {system_name} - window [{startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps}] s')
+            line, = ax.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_b_wind[0, :]/vacf_b_wind[0, 0], 'b-', label = 'Blue droplets')
+            ax.set(ylabel = r'vacf [$(mm/s)^2$]', xlabel = 'lag time $t$ [s]', xlim = (-1, 20), ylim = (-0.5, 1.1))
+            ax.grid(linewidth = 0.2)
+            ax.legend()
+            ax1 = fig.add_subplot(212)
+            line1, = ax1.plot(np.arange(0, maxLagtime/fps, 1/fps), vacf_r_wind[0, :]/vacf_r_wind[0, 0], 'r-', label = 'Red droplets')
+            ax1.set(ylabel = r'vacf [$(mm/s)^2$]', xlabel = 'lag time $t$ [s]', xlim = (-1, 20), ylim = (-0.5, 1.1))
+            ax1.grid(linewidth = 0.2)
+            ax1.legend()
+            plt.tight_layout()
+            fig.canvas.mpl_connect('button_press_event', onClick)
+            ani = matplotlib.animation.FuncAnimation(fig, update_graph, nSteps, interval = 5, blit=False)
+            if save_verb: ani.save(f'./{res_path}/velocity_autocovariance/vacf_wind.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+            if show_verb:
+                plt.show()
+            else:
+                plt.close()
+
 
 #############################################################################################################
 #                                              RDF ANALYSIS
