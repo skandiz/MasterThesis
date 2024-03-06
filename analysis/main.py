@@ -30,12 +30,12 @@ run_analysis_verb = True
 
 
 ABP_verb = False
-radius_verb = True
-msd_verb = True
+radius_verb = False
+msd_verb = False
 velocity_verb = True
 turning_angles_verb = True
 velocity_autocovariance_verb = True
-rdf_verb = True
+rdf_verb = False
 graph_verb = False
 motif_verb = False
 
@@ -85,7 +85,7 @@ if 1:
     w = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = int(video.get(cv2.CAP_PROP_FPS))
-    subsample_factor = int(fps/10)
+    subsample_factor = 1#int(fps/10)
     n_frames_video = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     print(f'Video has {n_frames_video} frames with a resolution of {w}x{h} and a framerate of {fps} fps')
 
