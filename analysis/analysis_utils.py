@@ -282,7 +282,6 @@ def rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, r
 def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red):
     COORDS_blue = np.array(trajectories.loc[~trajectories.particle.isin(red_particle_idx), ['x','y']])
     COORDS_red = np.array(trajectories.loc[trajectories.particle.isin(red_particle_idx), ['x','y']])
-    parallel = joblib.Parallel(n_jobs = -2)
     rdf = parallel(
         rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r)
         for frame in tqdm(frames - frames[0])
@@ -308,7 +307,6 @@ def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops):
 
 def get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops):
     COORDS = np.array(trajectories.loc[:,['x','y']])
-    parallel = joblib.Parallel(n_jobs = -2)
     rdf_c = parallel(
         rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops)
         for frame in tqdm( frames )
