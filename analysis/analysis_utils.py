@@ -285,7 +285,7 @@ def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_b
     parallel = joblib.Parallel(n_jobs = -2)
     rdf = parallel(
         rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r)
-        for frame in tqdm(frames)
+        for frame in tqdm(frames - frames[0])
     )
     return np.array(rdf)
 

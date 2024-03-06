@@ -32,10 +32,10 @@ run_analysis_verb = True
 ABP_verb = False
 radius_verb = False
 msd_verb = False
-velocity_verb = True
-turning_angles_verb = True
-velocity_autocovariance_verb = True
-rdf_verb = False
+velocity_verb = False
+turning_angles_verb = False
+velocity_autocovariance_verb = False
+rdf_verb = True
 graph_verb = False
 motif_verb = False
 
@@ -43,7 +43,7 @@ motif_verb = False
 #                                               IMPORT DATA
 #############################################################################################################
 if 1:
-    video_selection = '25b25r-1'
+    video_selection = '49b1r_post_merge'
     if video_selection == '25b25r-1':
         nDrops             = 50
         xmin, ymin, xmax, ymax = 95, 30, 535, 470    
@@ -1406,13 +1406,13 @@ if turning_angles_verb:
             _, _, bar_container = ax.hist(theta_red_wind[0], bin_borders_turn, **default_kwargs_blue, label='Blue droplets')
             line, = ax.plot(x_interval_for_fit_turn, normal_distr(x_interval_for_fit_turn, *blue_fit_wind_turn_gaussian[0, 0]), label='fit')
             title = ax.set_title(f'Turning angles pdf - {system_name} - window {startFrames[0]/fps + windowLenght/2} - {endFrames[0]/fps} seconds - {system_name}')
-            ax.set(ylabel = 'pdf', ylim = (0, 4))
+            ax.set(ylabel = 'pdf', ylim = (0, 3))
             ax.set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], [r'-$\pi$', r'$-\frac{\pi}{2}$', '$0$', r'$\frac{\pi}{2}$', r'$\pi$'])
             ax.grid(linewidth = 0.2)
 
             _, _, bar_container2 = ax1.hist(theta_red_wind[0], bin_borders_turn,  **default_kwargs_red, label='Red droplets')
             line1, = ax1.plot(x_interval_for_fit_turn, normal_distr(x_interval_for_fit_turn, *red_fit_wind_turn_gaussian[0, 0]), label='fit')
-            ax1.set(ylabel = 'pdf', ylim = (0, 4))
+            ax1.set(ylabel = 'pdf', ylim = (0, 3))
             ax1.set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi], [r'-$\pi$', r'$-\frac{\pi}{2}$', '$0$', r'$\frac{\pi}{2}$', r'$\pi$'])
             ax1.grid(linewidth = 0.2)
 
