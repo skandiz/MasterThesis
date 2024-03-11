@@ -54,7 +54,7 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
         npImage = cv2.resize(npImage, (500, 500))
         return npImage
     elif not preprocess:
-        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
+        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         npImage = npImage[y1:y2, x1:x2]
         npImage = cv2.resize(npImage, (500, 500))
         return npImage

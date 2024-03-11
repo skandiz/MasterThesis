@@ -69,8 +69,8 @@ def powerLaw(x, a, k):
 
 
 # Exponential distribution
-def exp(t, A, tau, c):
-    return c + A * np.exp(-t/tau)
+def exp(t, A, tau):
+    return A * np.exp(-t/tau)
 
 
 # Histogram fit
@@ -284,7 +284,7 @@ def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_b
     COORDS_red = np.array(trajectories.loc[trajectories.particle.isin(red_particle_idx), ['x','y']])
     rdf = parallel(
         rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r)
-        for frame in tqdm(frames - frames[0])
+        for frame in tqdm(frames)
     )
     return np.array(rdf)
 
