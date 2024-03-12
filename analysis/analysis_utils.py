@@ -155,15 +155,18 @@ def imsd_wind(k, trajs, startFrames, endFrames, pxDimension, fps, maxLagtime, fi
     temp, fit_wind, pw_exp_wind, = get_imsd(trajs_wind, pxDimension, fps, maxLagtime, fit_range)
     return temp, fit_wind, pw_exp_wind
 
-def get_imsd_windowed(nDrops, nSteps, startFrames, endFrames, trajs, pxDimension, fps, maxLagtime, fit_range):
+def get_imsd_windowed(nDrops, nSteps, startFrames, endFrames, trajs, pxDimension, fps, maxLagtime, fit_range, progress_verb):
     MSD_wind = []
     # fit region of the MSD
     fit_wind = np.zeros((nSteps, nDrops, len(fit_range)))
-    MSD_wind, fit_wind, pw_exp_wind = zip(*parallel(imsd_wind(k, trajs, startFrames, endFrames, pxDimension, fps, maxLagtime, fit_range) for k in tqdm(range(nSteps))))
+    if progress_verb:
+        MSD_wind, fit_wind, pw_exp_wind = zip(*parallel(imsd_wind(k, trajs, startFrames, endFrames, pxDimension, fps, maxLagtime, fit_range) for k in tqdm(range(nSteps))))
+    else:
+        MSD_wind, fit_wind, pw_exp_wind = zip(*parallel(imsd_wind(k, trajs, startFrames, endFrames, pxDimension, fps, maxLagtime, fit_range) for k in range(nSteps)))
     return MSD_wind, fit_wind, np.array(pw_exp_wind)
 
 
-def get_emsd_windowed(imsd, x, fps, red_mask, nSteps, maxLagtime, fit_range):
+def get_emsd_windowed(imsd, x, fps, red_mask, nSteps, maxLagtime, fit_range, progress_verb):
     id_start = np.where(imsd[0].index == fit_range[0])[0][0]
     id_end   = np.where(imsd[0].index == fit_range[-1])[0][0] + 1
     EMSD_wind = np.array(imsd)
@@ -177,10 +180,14 @@ def get_emsd_windowed(imsd, x, fps, red_mask, nSteps, maxLagtime, fit_range):
     pw_exp_wind_b = np.zeros((nSteps, 2, 2))
     fit_wind_r = np.zeros((nSteps, len(fit_range)))
     pw_exp_wind_r = np.zeros((nSteps, 2, 2))
-    
-    for i in tqdm(range(nSteps)):
-        fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, id_start:id_end], x, 1, EMSD_wind_b[1][i, id_start:id_end])
-        fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[0][i, id_start:id_end], x, 1, EMSD_wind_r[1][i, id_start:id_end])
+    if progress_verb:
+        for i in tqdm(range(nSteps)):
+            fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, id_start:id_end], x, 1, EMSD_wind_b[1][i, id_start:id_end])
+            fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[0][i, id_start:id_end], x, 1, EMSD_wind_r[1][i, id_start:id_end])
+    else:
+        for i in range(nSteps):
+            fit_wind_b[i], pw_exp_wind_b[i] = powerLawFit(EMSD_wind_b[0][i, id_start:id_end], x, 1, EMSD_wind_b[1][i, id_start:id_end])
+            fit_wind_r[i], pw_exp_wind_r[i] = powerLawFit(EMSD_wind_r[0][i, id_start:id_end], x, 1, EMSD_wind_r[1][i, id_start:id_end])
     
     results = {'fit_wind_b':fit_wind_b, 'pw_exp_wind_b':pw_exp_wind_b, 'fit_wind_r':fit_wind_r,\
                             'pw_exp_wind_r':pw_exp_wind_r}
@@ -195,10 +202,13 @@ def speed_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsa
     blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
     return ys.speed_ensemble(blueTrajs, step=1), ys.speed_ensemble(redTrajs, step=1)
 
-def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps):
+def speed_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps, progress_verb):
     v_blue_wind = []
     v_red_wind = []
-    v_blue_wind, v_red_wind = zip(*parallel(speed_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in tqdm(range(nSteps))))
+    if progress_verb:
+        v_blue_wind, v_red_wind = zip(*parallel(speed_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in tqdm(range(nSteps))))
+    else:
+        v_blue_wind, v_red_wind = zip(*parallel(speed_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in range(nSteps)))
     return v_blue_wind, v_red_wind
     
 # get turning angles distributions windowed in time
@@ -208,10 +218,13 @@ def turn_angl_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, s
     blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajs_wind, subsample_factor, fps)
     return ys.turning_angles_ensemble(blueTrajs, centered= True), ys.turning_angles_ensemble(redTrajs, centered= True)
 
-def turning_angles_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps):
+def turning_angles_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajs, subsample_factor, fps, progress_verb):
     theta_blue_wind = []
     theta_red_wind = []
-    theta_blue_wind, theta_red_wind = zip(*parallel(turn_angl_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in tqdm(range(nSteps))))
+    if progress_verb: 
+        theta_blue_wind, theta_red_wind = zip(*parallel(turn_angl_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in tqdm(range(nSteps))))
+    else:
+        theta_blue_wind, theta_red_wind = zip(*parallel(turn_angl_wind(k, nDrops, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps) for k in range(nSteps)))
     return theta_blue_wind, theta_red_wind
 
 
@@ -223,13 +236,15 @@ def vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_fact
     res3, res4 = ys.vacf(redTrajs, time_avg = True, lag = maxLagtime)
     return res1, res2, res3, res4
 
-def vacf_windowed(trajs, nSteps, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime):        
+def vacf_windowed(trajs, nSteps, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime, progress_verb):
     vacf_b_wind = []
     vacf_b_std_wind = []
     vacf_r_wind = []
     vacf_r_std_wind = []
-    
-    vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = zip(*parallel(vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime) for k in tqdm(range(nSteps))))
+    if progress_verb:
+        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = zip(*parallel(vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime) for k in tqdm(range(nSteps))))
+    else:
+        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = zip(*parallel(vacf_wind(k, trajs, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime) for k in range(nSteps)))
 
     vacf_b_wind = pd.DataFrame(vacf_b_wind)
     vacf_b_wind.columns = vacf_b_wind.columns.astype(str)
@@ -247,22 +262,28 @@ def vacf_windowed(trajs, nSteps, startFrames, endFrames, red_particle_idx, subsa
 
 
 @joblib.delayed
-def rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r):
-    coords_blue = COORDS_blue[frame*n_blue:(frame+1)*n_blue, :]
-    coords_red = COORDS_red[frame*n_red:(frame+1)*n_red, :]
+def rdf_frame(frame, trajs, n_blue, n_red, red_particle_idx, rList, dr, rho_b, rho_r):
+    coords_blue = trajs.loc[(trajs.frame == frame) & (~trajs.particle.isin(red_particle_idx)), ['x','y']].values
+    coords_red  = trajs.loc[(trajs.frame == frame) & (trajs.particle.isin(red_particle_idx)),  ['x','y']].values
+    
+    # kd tree for the blue and red droplets a the current frame
     kd_blue = KDTree(coords_blue)
-    kd_red = KDTree(coords_red)
+    kd_red  = KDTree(coords_red)
 
-    avg_b = np.zeros(len(rList))
-    avg_r = np.zeros(len(rList))
+    avg_b  = np.zeros(len(rList))
+    avg_r  = np.zeros(len(rList))
     avg_br = np.zeros(len(rList))
-    avg_rb = np.zeros(len(rList))
 
     for i, r in enumerate(rList):
         # radial distribution function for Blue droplets
+        # n of blue droplets within r + dr from each blue droplet (counts itself)
         a = kd_blue.query_ball_point(coords_blue, r + dr)
+        # n of blue droplets within r from each blue droplet (counts itself)
         b = kd_blue.query_ball_point(coords_blue, r)
-        avg_b[i] = (sum(len(j) - 1 for j in a) / len(a)) - (sum(len(j) - 1 for j in b) / len(b))
+        # mean number of droplets within r + dr --> sum(len(j) - 1 for j in a) / len(a) 
+        # mean number of droplets within r      --> sum(len(j) - 1 for j in b) / len(b)
+        # mean number of blue droplets in the annulus r + dr - r from each blue droplet
+        avg_b[i] = sum(len(j) - 1 for j in a) / len(a) - sum(len(j) - 1 for j in b) / len(b)
 
         # radial distribution function for Red droplets
         a = kd_red.query_ball_point(coords_red, r + dr)
@@ -279,15 +300,25 @@ def rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, r
     rdf_br = avg_br/(np.pi*(dr**2 + 2*rList*dr)*rho_b)
     return rdf_b, rdf_r, rdf_br
 
-def get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red):
-    COORDS_blue = np.array(trajectories.loc[~trajectories.particle.isin(red_particle_idx), ['x','y']])
-    COORDS_red = np.array(trajectories.loc[trajectories.particle.isin(red_particle_idx), ['x','y']])
-    rdf = parallel(
-        rdf_frame(frame, COORDS_blue, n_blue, COORDS_red, n_red, rList, dr, rho_b, rho_r)
-        for frame in tqdm(frames)
-    )
-    return np.array(rdf)
+def get_rdf(frames, trajectories, red_particle_idx, rList, dr, progress_verb):
+    n_blue = len(trajectories.loc[(trajectories.frame == 0) & (~trajectories.particle.isin(red_particle_idx))])
+    n_red  = len(trajectories.loc[(trajectories.frame == 0) & (trajectories.particle.isin(red_particle_idx))])
 
+    rDisk = rList[-1]
+    rho_b = n_blue / (np.pi*rDisk**2)
+    rho_r = n_red  / (np.pi*rDisk**2)
+
+    if progress_verb:
+        rdf_b, rdf_r, rdf_br = zip(*parallel(
+            rdf_frame(frame, trajectories, n_blue, n_red, red_particle_idx, rList, dr, rho_b, rho_r)
+            for frame in tqdm(frames))
+        )
+    else:
+        rdf_b, rdf_r, rdf_br = zip(*parallel(
+            rdf_frame(frame, trajectories, n_blue, n_red, red_particle_idx, rList, dr, rho_b, rho_r)
+            for frame in frames)
+        )
+    return rdf_b, rdf_r, rdf_br
 
 @joblib.delayed
 def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops):
@@ -305,14 +336,19 @@ def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops):
     rdf = avg_n/(np.pi*(dr**2 + 2*rList*dr)*rho)
     return rdf
 
-def get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops):
+def get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops, progress_verb):
     COORDS = np.array(trajectories.loc[:,['x','y']])
-    rdf_c = parallel(
-        rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops)
-        for frame in tqdm( frames )
-    )
-    rdf_c = np.array(rdf_c)
-    return rdf_c
+    if progress_verb:
+        rdf_c = parallel(
+            rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops)
+            for frame in tqdm( frames )
+        )
+    else:
+        rdf_c = parallel(
+            rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops)
+            for frame in frames
+        )
+    return np.array(rdf_c)
 
 
 def compute_eccentricity(points):
