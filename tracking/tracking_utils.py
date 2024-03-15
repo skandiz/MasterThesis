@@ -9,6 +9,7 @@ from csbdeep.utils import normalize
 import skimage
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
 
 ##################################################################################################################
 #                                        PREPROCESSING FUNCTIONS                                                 #
@@ -145,33 +146,6 @@ def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_na
     except:
         print('No spurious effect detected')
 
-
-def filter_detection_data(r_min, r_max, raw_detection_df, nDrops):
-    # filter found features
-    print("Frames with spurious effects pre filtering:", len(np.where(raw_detection_df.groupby('frame').count().x.values != nDrops)[0]), "/", len(raw_detection_df.frame.unique()))
-    filtered_df = raw_detection_df.loc[raw_detection_df.r.between(rmin, rmax)]
-    filtered_df = filtered_df.groupby('frame').apply(lambda x: x.nlargest(nDrops, 'prob'))
-    filtered_df = filtered_df.reset_index(drop=True)
-    print("Frames with spurious effects after filtering:", len(np.where(filtered_df.groupby('frame').count().x.values != nDrops)[0]), "/", len(filtered_df.frame.unique()))
-    return filtered_df
-
-
-def interpolate_trajectory(group):
-    interp_method = 'quadratic'
-    all_frames = pd.DataFrame({"frame": range(group["frame"].min(), group["frame"].max() + 1)})
-    merged = pd.merge(all_frames, group, on="frame", how="left")
-    merged = merged.sort_values(by="frame")
-    # Interpolate missing values
-    merged["x"]        = merged["x"].interpolate(method = interp_method)
-    merged["y"]        = merged["y"].interpolate(method = interp_method)
-    merged["r"]        = merged["r"].interpolate(method = interp_method)
-    merged["area"]     = merged["area"].interpolate(method = interp_method)
-    merged["prob"]     = merged["prob"].interpolate(method = interp_method)
-    merged["frame"]    = merged["frame"].interpolate(method = interp_method)
-    merged["particle"] = merged["particle"].ffill()
-    merged["color"]    = merged["color"].ffill()
-    return merged
-
 def plot_img_label(img, lbl, img_title="image", lbl_title="label", **kwargs):
     fig, (ai,al) = plt.subplots(1,2, figsize=(12,5), gridspec_kw=dict(width_ratios=(1.25,1)))
     im = ai.imshow(img, cmap='gray', clim=(0,1))
@@ -180,7 +154,6 @@ def plot_img_label(img, lbl, img_title="image", lbl_title="label", **kwargs):
     al.imshow(lbl, cmap=lbl_cmap)
     al.set_title(lbl_title)
     plt.tight_layout()
-
 
 def random_fliprot(img, mask): 
     assert img.ndim >= mask.ndim
@@ -194,11 +167,9 @@ def random_fliprot(img, mask):
             mask = np.flip(mask, axis=ax)
     return img, mask 
 
-
 def random_intensity_change(img):
     img = img*np.random.uniform(0.6,2) + np.random.uniform(-0.2,0.2)
     return img
-
 
 def augmenter(x, y):
     """Augmentation of a single input/label image pair.
@@ -211,6 +182,35 @@ def augmenter(x, y):
     sig = 0.02*np.random.uniform(0,1)
     x = x + sig*np.random.normal(0,1,x.shape)
     return x, y
+
+
+##################################################################################################################
+#                                        POSTPROCESSING FUNCTIONS                                                 #
+##################################################################################################################
+
+def get_smooth_trajs(trajs, windLen, orderofPoly):
+    trajs_ret = trajs.copy()
+    trajs_ret['x'] = trajs_ret.groupby('particle')['x'].transform(lambda x: savgol_filter(x, windLen, orderofPoly))
+    trajs_ret['y'] = trajs_ret.groupby('particle')['y'].transform(lambda y: savgol_filter(y, windLen, orderofPoly))
+    return trajs_ret
+
+
+def interpolate_trajectory(group):
+    interp_method = 'linear'
+    all_frames = pd.DataFrame({"frame": range(group["frame"].min(), group["frame"].max() + 1)})
+    merged = pd.merge(all_frames, group, on="frame", how="left")
+    merged = merged.sort_values(by="frame")
+    # Interpolate missing values
+    merged["x"]        = merged["x"].interpolate(method = interp_method)
+    merged["y"]        = merged["y"].interpolate(method = interp_method)
+    merged["r"]        = merged["r"].interpolate(method = interp_method)
+    merged["area"]     = merged["area"].interpolate(method = interp_method)
+    merged["prob"]     = merged["prob"].interpolate(method = interp_method)
+    merged["frame"]    = merged["frame"].interpolate(method = interp_method)
+    # ffill() --> Fill NA/NaN values by propagating the last valid observation to next valid.
+    merged["particle"] = merged["particle"].ffill()
+    merged["color"]    = merged["color"].ffill()
+    return merged
 
 
 ##################################################################################################################
@@ -356,8 +356,8 @@ def generate_synthetic_image(outer_radius, n_feature, height, width, rmin, rmax,
     return image, mask
     
 @joblib.delayed
-def generate_synthetic_image_from_simulation_data_parallel(trajectories, frame, height, width, gaussian_sigma, gaussian_amplitude, color, sharp_verb=False):
-    trajs = trajectories.loc[(trajectories.frame == frame), ["x", "y", "r"]]
+def generate_synthetic_image_from_simulation_data_parallel(trajectories, frame, height, width, gaussian_sigma, gaussian_amplitude, color, scale, sharp_verb=False):
+    trajs = trajectories.loc[(trajectories.frame == frame), ["x", "y", "r"]]*scale
     # create background image
     image = np.random.randint(70, 75, (height, width), dtype=np.uint8)
     # Draw the outer circle mimicking the petri dish

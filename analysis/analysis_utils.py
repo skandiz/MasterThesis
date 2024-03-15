@@ -95,16 +95,7 @@ def get_trajs(nDrops, red_particle_idx, trajs, subsample_factor, fps):
             p = trajs.loc[trajs.particle == i, ['x','y']][::subsample_factor]
             blueTrajs.append(Trajectory(p.x, p.y, dt = 1/fps*subsample_factor, traj_id=i))
     return blueTrajs, redTrajs
-
-
-def get_smooth_trajs(trajs, nDrops, windLen, orderofPoly):
-    # Trajectory Smoothing: using a Savgol Filter in order to drop the noise due to the tracking procedure
-    ret = trajs.copy()
-    for i in range(nDrops):
-        ret.loc[ret.particle == i, 'x'] = savgol_filter(trajs.loc[trajs.particle == i].x.values, windLen, orderofPoly)
-        ret.loc[ret.particle == i, 'y'] = savgol_filter(trajs.loc[trajs.particle == i].y.values, windLen, orderofPoly)    
-    return ret
-
+    
 
 def powerLawFit(f, x, nDrops, yerr):
     if nDrops == 1:
