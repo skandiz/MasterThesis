@@ -25,6 +25,26 @@ np.random.seed(42)
 lbl_cmap = random_label_cmap()
 
 if 1:
+    def detect_features_from_imgs(imgs, frames, model, model_name):
+        feature_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
+                                    'prob':[], 'area_bbox':[], 'area_convex':[], 'area_filled':[], 'axis_major_length':[],\
+                                    'axis_minor_length':[], 'bbox-0':[], 'bbox-1':[], 'bbox-2':[], 'bbox-3':[],\
+                                    'equivalent_diameter_area':[], 'euler_number':[], 'extent':[], 'feret_diameter_max':[],\
+                                    'inertia_tensor-0-0':[], 'inertia_tensor-0-1':[], 'inertia_tensor-1-0':[],\
+                                    'inertia_tensor-1-1':[], 'inertia_tensor_eigvals-0':[], 'inertia_tensor_eigvals-1':[],\
+                                    'label':[]}
+
+        for frame in tqdm(frames):
+            img = imgs[frame]
+            feature_properties_dict = detect_features_frame(feature_properties_dict, frame, img, model)
+                    
+        feature_properties_dict['r'] = np.sqrt(np.array(feature_properties_dict['area'])/np.pi)
+        raw_detection_df = pd.DataFrame(feature_properties_dict)
+        raw_detection_df.rename(columns={'centroid-0': 'y', 'centroid-1': 'x'}, inplace=True)
+        raw_detection_df['frame'] = raw_detection_df.frame.astype('int')
+        raw_detection_df.sort_values(by=['frame', 'prob'], ascending=[True, False], inplace=True)
+        return raw_detection_df
+        
     def overlap_between_circles(existing_circles, center, radius):
         for existing_center in existing_circles:
             distance = np.linalg.norm(np.array(existing_center) - np.array(center))
@@ -102,6 +122,8 @@ if 1:
 
 run_simulation_verb = False
 generate_synthetic_images = True
+run_detection_verb = False
+run_linking_verb = False
 
 # SETUP
 np.random.seed(0)
@@ -160,17 +182,16 @@ if run_simulation_verb:
         r += [droplet_radius for i in range(num_droplets)]
         label += [i for i in range(num_droplets)]
         
-    trajectories = pd.DataFrame({'frame': frames, 'x': x, 'y': y, 'r': r, 'label': label})
-    trajectories.to_parquet(f'./simulation/simulated_trajectories_{fps}_fps.parquet')
+    simulated_trajectories = pd.DataFrame({'frame': frames, 'x': x, 'y': y, 'r': r, 'label': label})
+    simulated_trajectories.to_parquet(f'./simulation/simulated_trajectories_{fps}_fps.parquet')
 else:
-    trajectories = pd.read_parquet(f'./simulation/simulated_trajectories_{fps}_fps.parquet')
+    simulated_trajectories = pd.read_parquet(f'./simulation/simulated_trajectories_{fps}_fps.parquet')
 
 
 resolution = 500
 
 test_frame = 5000
-trajectories = pd.read_parquet('./simulation/simulated_trajectories_30_fps.parquet')
-test_img, test_mask, circles_array = zip(*parallel(generate_synthetic_image_from_simulation_data_parallel(trajectories=trajectories,\
+test_img, test_mask, circles_array = zip(*parallel(generate_synthetic_image_from_simulation_data_parallel(trajectories=simulated_trajectories,\
                                                                         frame=test_frame, height=resolution, width=resolution,\
                                                                         gaussian_sigma=5*resolution/500,\
                                                                         gaussian_amplitude=20, color=100, scale = resolutions/500\
@@ -179,7 +200,7 @@ test_img = test_img[0]
 test_mask = test_mask[0]
 circles_array = circles_array[0]
 
-temp = trajectories.loc[(trajectories.frame == test_frame), ["x", "y", "r"]]
+temp = simulated_trajectories.loc[(simulated_trajectories.frame == test_frame), ["x", "y", "r"]]
 fig, ax = plt.subplots(1, 3, figsize = (10, 5))
 for i in range(len(temp)):
     ax[0].add_artist(plt.Circle((temp.x.values[i], temp.y.values[i]), temp.r.values[i], fill = True, alpha = 0.5, color = 'b'))
@@ -197,9 +218,9 @@ plt.savefig('./simulation/synthetic_image_from_simulation.png', dpi = 300)
 plt.close()
 
 if generate_synthetic_images:
-    sample_frames = trajectories.frame.unique()
+    sample_frames = simulated_trajectories.frame.unique()
     test = parallel(
-                    generate_synthetic_image_from_simulation_data_parallel(trajectories=trajectories,\
+                    generate_synthetic_image_from_simulation_data_parallel(trajectories=simulated_trajectories,\
                                                                 frame=frame, height=resolution, width=resolution,\
                                                                 gaussian_sigma=5*resolution/500, scale = resolutions/500, \
                                                                 gaussian_amplitude=20, color=100, sharp_verb=True)
@@ -207,8 +228,26 @@ if generate_synthetic_images:
     )
 
     test_img = np.array([i[0] for i in test])
-    test_mask = np.array([i[1] for i in test])
 
     # save images and masks for training
     for i in tqdm(range(test_img.shape[0])):
         imwrite(f'./simulation/synthetic_dataset_{fps}_fps/image/synthetic_{i}.tif', test_img[i])
+
+
+fps = 100
+simulated_trajectories['particle'] = simulated_trajectories['label']
+simulated_trajectories.loc[:, ['x','y']] = simulated_trajectories.loc[:, ['x','y']] + 250
+frames = simulated_trajectories.frame.unique()
+imgs = []
+for frame in tqdm(frames):
+    imgs.append(imread(f'./simulation/synthetic_dataset_{fps}_fps/image/synthetic_{frame}.tif'))
+
+
+if run_detection_verb:
+    #model_name = 'stardist_trained'          # stardist model trained for 50 epochs on simulated synthetic dataset
+    model_name = 'modified_2D_versatile_fluo' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
+    model = StarDist2D(None, name = model_name, basedir = './models/')
+
+
+    raw_detection_df = detect_features_from_imgs(imgs, frames, model, model_name)
+    raw_detection_df.to_parquet(f'./simulation/simulated_video_raw_detection_{fps}_fps_{resolution}.parquet')
