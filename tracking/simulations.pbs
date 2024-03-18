@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -l select=4:ncpus=16:mpiprocs=64:mem=30GB
+#PBS -l walltime=06:00:00
+#PBS -q short_cpuQ
+#PBS -o test2.err
+#PBS -e test2.out
+#PBS -M matteo.scandola@studenti.unitn.it
+#PBS -m abe
+
+source ~/.bashrc
+conda activate csbdeep
+cd projects/MasterThesis/tracking/
+python3 simulations.py

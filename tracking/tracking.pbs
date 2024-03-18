@@ -9,6 +9,5 @@
 
 source ~/.bashrc
 conda activate csbdeep
-#source tf/bin/activate
-cd projects/Master/tracking/
+cd projects/MasterThesis/tracking/
 python3 stardist_pipeline.py
