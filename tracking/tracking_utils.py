@@ -177,6 +177,7 @@ def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_na
         plt.close()
     except:
         print('No spurious effect detected')
+    return raw_detection_df
 
 def plot_img_label(img, lbl, img_title="image", lbl_title="label", **kwargs):
     fig, (ai,al) = plt.subplots(1,2, figsize=(12,5), gridspec_kw=dict(width_ratios=(1.25,1)))

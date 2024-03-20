@@ -130,7 +130,7 @@ ax[0, 1].imshow(Y[0])
 ax[1, 0].imshow(X[-1])
 ax[1, 1].imshow(Y[-1])
 plt.savefig('./test.png', dpi = 500)
-plt.close
+plt.close()
 
 assert len(X) > 1, "not enough training data"
 rng = np.random.RandomState(42)
@@ -142,6 +142,7 @@ X_trn, Y_trn = [X[i] for i in ind_train], [Y[i] for i in ind_train]
 print('number of images: %3d' % len(X))
 print('- training:       %3d' % len(X_trn))
 print('- validation:     %3d' % len(X_val))
+
 
 median_size = calculate_extents(list(Y), np.median)
 fov = np.array(model._axes_tile_overlap('YX'))
