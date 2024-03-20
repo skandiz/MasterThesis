@@ -15,10 +15,10 @@ import trackpy as tp
 from tifffile import imsave, imread
 from tracking_utils import detect_features_frame, detect_features, test_detection, get_frame, interpolate_trajectory
 
-model_name = 'modified_2D_versatile_fluo' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
+model_name = 'modified_2D_versatile_fluo_1000x1000' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
 model = StarDist2D(None, name = model_name, basedir = './models/')
 
-video_selection = "49b1r"
+video_selection = "25b25r-1"
 if video_selection == "25b25r-1":
     xmin, ymin, xmax, ymax = 95, 30, 535, 470 
     merge_present = False   
@@ -40,13 +40,13 @@ fps = int(video.get(cv2.CAP_PROP_FPS))
 n_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 print(f'Video has {n_frames} frames with a resolution of {w}x{h} and a framerate of {fps} fps')
 
-test_verb = False
+test_verb = True
 detect_verb = False
-link_verb = True
-interp_verb = True
+link_verb = False
+interp_verb = False
 
 startFrame = 0
-endFrame = n_frames - 1
+endFrame = 100000 - 1
 
 if test_verb: 
     n_samples = 1000

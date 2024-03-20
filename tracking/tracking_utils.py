@@ -19,7 +19,7 @@ from tifffile import imwrite, imread
 ##################################################################################################################
 #                                        PREPROCESSING FUNCTIONS                                                 #
 ##################################################################################################################
-
+"""
 def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, image = cap.read()
@@ -42,7 +42,33 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
         return npImage
     else:
         raise ValueError("preprocess must be a boolean")
+"""
 
+def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+    ret, image = cap.read()
+    if preprocess:
+        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
+        alpha = Image.new('L', (w, h), 0)
+        draw = ImageDraw.Draw(alpha)
+        draw.pieslice(((x1, y1), (x2, y2)), 0, 360, fill=255)
+        npAlpha = np.array(alpha)
+        npImage = npImage*npAlpha
+        ind = np.where(npImage == 0)
+        npImage[ind] = npImage[200, 200]
+        npImage = npImage[y1:y2, x1:x2]
+        if npImage.shape[0] > 1000: # if the image is too large --> shrinking with INTER_AREA interpolation
+            npImage = cv2.resize(npImage, (1000, 1000), interpolation = cv2.INTER_AREA)
+        else: # if the image is too small --> enlarging with INTER_LINEAR interpolation
+            npImage = cv2.resize(npImage, (1000, 1000), interpolation = cv2.INTER_CUBIC)
+        return npImage
+    elif not preprocess:
+        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        npImage = npImage[y1:y2, x1:x2]
+        npImage = cv2.resize(npImage, (500, 500))
+        return npImage
+    else:
+        raise ValueError("preprocess must be a boolean")
 
 ##################################################################################################################
 #                                           STARDIST FUNCTIONS                                                   #
@@ -317,8 +343,8 @@ def generate_synthetic_image_from_simulation_data(trajectories, frame, height, w
     # create background image
     image = np.random.randint(70, 75, (height, width), dtype=np.uint8)
     # Draw the outer circle mimicking the petri dish
-    cv2.circle(image, (int(height/2), int(width/2)), int(width/2), 150) 
-    cv2.circle(image, (int(height/2), int(width/2)), int(width/2)-4, 150) 
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2), 150)
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2)-4, 150)
     image = cv2.GaussianBlur(image, (5, 5), 4)
     
     # initialize mask
@@ -344,6 +370,6 @@ def generate_synthetic_image_from_simulation_data(trajectories, frame, height, w
     # add gaussian profile to droplets
     image += circles_array 
     if save_path is not None: 
-        imwrite(save_path + f'image/frame_{frame}.tif', image, compression='zlib')
-        imwrite(save_path + f'mask/frame_{frame}.tif', mask, compression='zlib')
+        imwrite(save_path + f'image/frame_{frame}_{height}_resolution.tif', image, compression='zlib')
+        imwrite(save_path + f'mask/frame_{frame}_{height}_resolution.tif', mask, compression='zlib')
     return image, mask
