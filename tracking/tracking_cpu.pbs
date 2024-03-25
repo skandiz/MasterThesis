@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=16:mem=10GB
+#PBS -l walltime=20:00:00
+#PBS -q long_cpuQ
+#PBS -o ../tracking_logs/tracking25b25r_5.out
+#PBS -e ../tracking_logs/tracking25b25r_5.err
+#PBS -M matteo.scandola@studenti.unitn.it
+#PBS -m abe
+
+source ~/.bashrc
+conda activate csbdeep
+cd projects/MasterThesis/tracking/
+python3 stardist_tracking.py

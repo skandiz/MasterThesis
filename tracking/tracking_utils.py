@@ -1,7 +1,7 @@
 import joblib
 import multiprocessing
 n_jobs = int(multiprocessing.cpu_count()*0.9)
-parallel = joblib.Parallel(n_jobs=n_jobs, backend='loky', verbose=0)
+parallel = joblib.Parallel(n_jobs=n_jobs, backend='multiprocessing', verbose=0)
 import random
 import numpy as np
 import cv2
@@ -44,7 +44,7 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
         raise ValueError("preprocess must be a boolean")
 """
 
-def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
+def get_frame(cap, frame, x1, y1, x2, y2, w, h, resolution, preprocess):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, image = cap.read()
     if preprocess:
@@ -57,10 +57,10 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
         ind = np.where(npImage == 0)
         npImage[ind] = npImage[200, 200]
         npImage = npImage[y1:y2, x1:x2]
-        if npImage.shape[0] > 1000: # if the image is too large --> shrinking with INTER_AREA interpolation
-            npImage = cv2.resize(npImage, (1000, 1000), interpolation = cv2.INTER_AREA)
+        if npImage.shape[0] > resolution: # if the image is too large --> shrinking with INTER_AREA interpolation
+            npImage = cv2.resize(npImage, (resolution, resolution), interpolation = cv2.INTER_AREA)
         else: # if the image is too small --> enlarging with INTER_LINEAR interpolation
-            npImage = cv2.resize(npImage, (1000, 1000), interpolation = cv2.INTER_CUBIC)
+            npImage = cv2.resize(npImage, (resolution, resolution), interpolation = cv2.INTER_CUBIC)
         return npImage
     elif not preprocess:
         npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
@@ -74,15 +74,9 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
 #                                           STARDIST FUNCTIONS                                                   #
 ##################################################################################################################
 
-def detect_features_frame(feature_properties_dict, frame, img, model):
+def detect_instances_frame(instance_properties_dict, frame, img, model):
     segmented_image, dict_test = model.predict_instances(normalize(img), predict_kwargs = {'verbose' : False})
-    if frame == 0:
-        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (10,5))
-        ax.imshow(normalize(img))
-        ax1.imshow(segmented_image)
-        plt.savefig('test_img.png', dpi = 500)
-        plt.close()
-    feature_properties = skimage.measure.regionprops_table(segmented_image, \
+    instance_properties = skimage.measure.regionprops_table(segmented_image, \
                                                             properties=('area', 'area_bbox', 'area_convex', 'area_filled',\
                                                                         'axis_major_length', 'axis_minor_length',\
                                                                         'bbox', 'centroid', 'eccentricity', \
@@ -90,15 +84,17 @@ def detect_features_frame(feature_properties_dict, frame, img, model):
                                                                         'feret_diameter_max', 'inertia_tensor',\
                                                                         'inertia_tensor_eigvals', 'label'))
 
-    for key in feature_properties.keys():
-        feature_properties_dict[key] += list(feature_properties[key])
-    feature_properties_dict['prob']  += list(dict_test['prob'])
-    feature_properties_dict['frame'] += list(np.ones(len(list(feature_properties['centroid-0'])))*frame)
-    return feature_properties_dict
+    for key in instance_properties.keys():
+        instance_properties_dict[key] += list(instance_properties[key])
+    #instance_properties_dict.update({key: instance_properties_dict.get(key, []) + list(instance_properties[key]) for key in instance_properties.keys()})
+    instance_properties_dict['prob']  += list(dict_test['prob'])
+    instance_properties_dict['frame'] += list(np.ones(len(list(instance_properties['centroid-0'])))*frame)
+    return instance_properties_dict
 
 
-def detect_features_from_images(frames, imgs_path, model):
-    feature_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
+
+def detect_instances_from_images(frames, imgs_path, model):
+    instance_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
                                 'prob':[], 'area_bbox':[], 'area_convex':[], 'area_filled':[], 'axis_major_length':[],\
                                 'axis_minor_length':[], 'bbox-0':[], 'bbox-1':[], 'bbox-2':[], 'bbox-3':[],\
                                 'equivalent_diameter_area':[], 'euler_number':[], 'extent':[], 'feret_diameter_max':[],\
@@ -108,17 +104,17 @@ def detect_features_from_images(frames, imgs_path, model):
 
     for frame in tqdm(frames):
         img = imread(imgs_path + f'frame_{frame}.tif')
-        feature_properties_dict = detect_features_frame(feature_properties_dict, frame, img, model)
+        instance_properties_dict = detect_instances_frame(instance_properties_dict, frame, img, model)
 
-    feature_properties_dict['r'] = np.sqrt(np.array(feature_properties_dict['area'])/np.pi)
-    raw_detection_df = pd.DataFrame(feature_properties_dict)
+    instance_properties_dict['r'] = np.sqrt(np.array(instance_properties_dict['area'])/np.pi)
+    raw_detection_df = pd.DataFrame(instance_properties_dict)
     raw_detection_df.rename(columns={'centroid-0': 'y', 'centroid-1': 'x'}, inplace=True)
     raw_detection_df['frame'] = raw_detection_df.frame.astype('int')
     raw_detection_df.sort_values(by=['frame', 'prob'], ascending=[True, False], inplace=True)
     return raw_detection_df
 
-def detect_features(frames, test_verb, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, save_path):
-    feature_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
+def detect_instances(frames, test_verb, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path):
+    instance_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
                                 'prob':[], 'area_bbox':[], 'area_convex':[], 'area_filled':[], 'axis_major_length':[],\
                                 'axis_minor_length':[], 'bbox-0':[], 'bbox-1':[], 'bbox-2':[], 'bbox-3':[],\
                                 'equivalent_diameter_area':[], 'euler_number':[], 'extent':[], 'feret_diameter_max':[],\
@@ -127,11 +123,11 @@ def detect_features(frames, test_verb, video_selection, model, model_name, video
                                 'label':[]}
 
     for frame in tqdm(frames):
-        img = get_frame(video, frame, xmin, ymin, xmax, ymax, w, h, True)
-        feature_properties_dict = detect_features_frame(feature_properties_dict, frame, img, model)
+        img = get_frame(video, frame, xmin, ymin, xmax, ymax, w, h, resolution, True)
+        instance_properties_dict = detect_instances_frame(instance_properties_dict, frame, img, model)
                 
-    feature_properties_dict['r'] = np.sqrt(np.array(feature_properties_dict['area'])/np.pi)
-    raw_detection_df = pd.DataFrame(feature_properties_dict)
+    instance_properties_dict['r'] = np.sqrt(np.array(instance_properties_dict['area'])/np.pi)
+    raw_detection_df = pd.DataFrame(instance_properties_dict)
     raw_detection_df.rename(columns={'centroid-0': 'y', 'centroid-1': 'x'}, inplace=True)
     raw_detection_df['frame'] = raw_detection_df.frame.astype('int')
     raw_detection_df.sort_values(by=['frame', 'prob'], ascending=[True, False], inplace=True)
@@ -142,20 +138,55 @@ def detect_features(frames, test_verb, video_selection, model, model_name, video
             raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_{frames[0]}_{frames[-1]}.parquet', index=False)
     return raw_detection_df
 
-def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, save_path):
+
+def detect_instances_parallel(frames, test_verb, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path):
+    instance_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
+                                'prob':[], 'area_bbox':[], 'area_convex':[], 'area_filled':[], 'axis_major_length':[],\
+                                'axis_minor_length':[], 'bbox-0':[], 'bbox-1':[], 'bbox-2':[], 'bbox-3':[],\
+                                'equivalent_diameter_area':[], 'euler_number':[], 'extent':[], 'feret_diameter_max':[],\
+                                'inertia_tensor-0-0':[], 'inertia_tensor-0-1':[], 'inertia_tensor-1-0':[],\
+                                'inertia_tensor-1-1':[], 'inertia_tensor_eigvals-0':[], 'inertia_tensor_eigvals-1':[],\
+                                'label':[]}
+
+    instance_properties_dict = parallel(
+                        joblib.delayed(detect_instances_frame)(instance_properties_dict, frame, get_frame(video, frame, xmin, ymin, xmax, ymax, w, h, resolution, True), model) 
+                        for frame in tqdm(frames) )
+                
+    instance_properties_dict['r'] = np.sqrt(np.array(instance_properties_dict['area'])/np.pi)
+    raw_detection_df = pd.DataFrame(instance_properties_dict)
+    raw_detection_df.rename(columns={'centroid-0': 'y', 'centroid-1': 'x'}, inplace=True)
+    raw_detection_df['frame'] = raw_detection_df.frame.astype('int')
+    raw_detection_df.sort_values(by=['frame', 'prob'], ascending=[True, False], inplace=True)
+    if test_verb:
+        pass
+    else:
+        if save_path is not None:
+            raw_detection_df.to_parquet(save_path + f'raw_detection_{video_selection}_{model_name}_{frames[0]}_{frames[-1]}.parquet', index=False)
+    return raw_detection_df
+
+def test_detection(n_samples, n_frames, nDrops, video_selection, merge_frame, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path):
     print(f"Testing detection on {n_samples} random frames")
     sample_frames = np.sort(np.random.choice(np.arange(0, n_frames, 1, dtype=int), n_samples, replace=False))
-    raw_detection_df = detect_features(frames = sample_frames, test_verb = True, video_selection = video_selection,\
+    raw_detection_df = detect_instances(frames = sample_frames, test_verb = True, video_selection = video_selection,\
                                        model = model, model_name = model_name, video = video, xmin = xmin, ymin = ymin,\
-                                       xmax = xmax, ymax = ymax, w = w, h = h, save_path = save_path)
+                                       xmax = xmax, ymax = ymax, w = w, h = h, resolution = resolution, save_path = save_path)
 
-    n_feature_per_frame = raw_detection_df.groupby('frame').count().x.values
-    print(f"Frames with spurious effects:", len(np.where(n_feature_per_frame != nDrops)[0]), "/", len(sample_frames))
+    n_instances_per_frame = raw_detection_df.groupby('frame').count().x.values
+    if merge_frame is not None:
+        pre_merge_frames = np.where(sample_frames < merge_frame)[0]
+        post_merge_frames = np.where(sample_frames >= merge_frame)[0]
+        n_instances_per_frame_pre_merge = n_instances_per_frame[pre_merge_frames]
+        n_instances_per_frame_post_merge = n_instances_per_frame[post_merge_frames]
+        print(f"Frames with spurious effects pre merge:", len(np.where(n_instances_per_frame_pre_merge != 50)[0]), "/", len(pre_merge_frames))
+        print(f"Frames with spurious effects post merge:", len(np.where(n_instances_per_frame_post_merge != 49)[0]), "/", len(post_merge_frames))        
+    else:
+        print(f"Frames with spurious effects:", len(np.where(n_instances_per_frame != nDrops)[0]), "/", len(sample_frames))
+
     fig, ax = plt.subplots(2, 2, figsize = (8, 4))
-    ax[0, 0].plot(raw_detection_df.frame.unique(), n_feature_per_frame, '.')
+    ax[0, 0].plot(raw_detection_df.frame.unique(), n_instances_per_frame, '.')
     ax[0, 0].set(xlabel = 'Frame', ylabel = 'N of droplets', title = 'N of droplets per frame')
     ax[0, 1].plot(raw_detection_df.r, '.')
-    ax[0, 1].set(xlabel = 'Feature index', ylabel = 'Radius [px]', title = 'Radius of features detected')
+    ax[0, 1].set(xlabel = 'Feature index', ylabel = 'Radius [px]', title = 'Radius of instances detected')
     ax[1, 0].scatter(raw_detection_df.r, raw_detection_df.eccentricity, s=0.1)
     ax[1, 0].set(xlabel = 'Radius [px]', ylabel='Eccentricity', title='R-eccentricity correlation')
     ax[1, 1].scatter(raw_detection_df.r, raw_detection_df.prob, s=0.1)
@@ -166,7 +197,7 @@ def test_detection(n_samples, n_frames, nDrops, video_selection, model, model_na
 
     try:
         selected_frame = sample_frames[np.where(raw_detection_df.groupby('frame').count().x.values < nDrops)[0][0]]
-        img = get_frame(video, selected_frame, xmin, ymin, xmax, ymax, w, h, True)
+        img = get_frame(video, selected_frame, xmin, ymin, xmax, ymax, w, h, resolution, True)
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.set_title(f"Example of spurious effect at frame {selected_frame}")
         ax.imshow(img, cmap='gray')
@@ -257,9 +288,9 @@ def overlap_between_circles(existing_circles, center, radius):
             return True
     return False
 
-def initial_droplet_positions(nFeatures, rFeature, rMax):
+def initial_droplet_positions(nInstances, rFeature, rMax):
     list_of_centers = []
-    for i in range(nFeatures):
+    for i in range(nInstances):
         while True:
             # Generate a random position inside the outer circle 
             theta = random.uniform(0, 2 * np.pi)
@@ -356,10 +387,10 @@ def generate_synthetic_image_from_simulation_data(trajectories, frame, height, w
     for i in range(len(trajs)):
         index = i + 1 
         center = (int(width/2 + trajs.x.values[i]), int(height/2 + trajs.y.values[i]))
-        feature_radius = int(trajs.r.values[i])
-        cv2.circle(image, center, feature_radius, color, -1, lineType=8) 
+        instance_radius = int(trajs.r.values[i])
+        cv2.circle(image, center, instance_radius, color, -1, lineType=8) 
         circles_array += create_gaussian(center, width, height, gaussian_sigma, gaussian_amplitude)
-        cv2.circle(mask, center, feature_radius, (index), -1)
+        cv2.circle(mask, center, instance_radius, (index), -1)
     
     if sharp_verb:
         image = cv2.GaussianBlur(image, (5, 5), 2)

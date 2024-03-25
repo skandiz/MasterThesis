@@ -1,3 +1,5 @@
+import subprocess as sp
+import os
 import numpy as np
 from tqdm import tqdm
 import shutil
@@ -16,14 +18,29 @@ from stardist import _draw_polygons
 np.random.seed(42)
 lbl_cmap = random_label_cmap()
 
-training_model = 'modified_2D_versatile_fluo_1000x1000_v4'
-train_verb = False
+def get_gpu_memory():
+    command = "nvidia-smi --query-gpu=memory.free --format=csv"
+    memory_free_info = sp.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
+    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
+    return memory_free_values
+
+
+if 0:
+    print(get_gpu_memory())
+    from csbdeep.utils.tf import limit_gpu_memory
+    limit_gpu_memory(fraction = 0.5, total_memory=5000)
+
+model_name = 'modified_2D_versatile_fluo_1000x1000_v3'
+
+train_verb = True
 optimize_verb = True
 
+X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
+Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
 
-if training_model == 'new':
+if model_name == 'new':
     n_rays = 32
-    use_gpu = False and gputools_available()
+    use_gpu = True
     grid = (2, 2)
     conf = Config2D (
         n_rays       = n_rays,
@@ -31,85 +48,16 @@ if training_model == 'new':
         use_gpu      = use_gpu,
         n_channel_in = n_channel,
     )
-    print(conf)
-    vars(conf)
-    if use_gpu:
-        from csbdeep.utils.tf import limit_gpu_memory
-        limit_gpu_memory(0.8)
     model = StarDist2D(conf, name=f'stardist_trained_from_zero', basedir='models')
-
-elif training_model == 'modified_2D_versatile_fluo_1000x1000':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/mask/*.tif"))
+else:
+    if 1:
         model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000')
+        shutil.copytree(model_pretrained.logdir, f'./models/{model_name}')
+        model = StarDist2D(None, f'./models/{model_name}')
     else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000', basedir = 'models')
+        model = StarDist2D(None, name = f'{model_name}', basedir = 'models')
 
-elif training_model == 'modified_2D_versatile_fluo_1000x1000_v2':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000_v2')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000_v2')
-    else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000_v2', basedir = 'models')
-
-elif training_model == 'modified_2D_versatile_fluo_1000x1000_v3':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000_v3')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000_v3')
-    else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000_v3', basedir = 'models')
-
-elif training_model == 'modified_2D_versatile_fluo_1000x1000_v4':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000_v4')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000_v4')
-    else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000_v4', basedir = 'models')
-    
-elif training_model == 'modified_2D_versatile_fluo_1000x1000_v5':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000_v5')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000_v5')
-    else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000_v5', basedir = 'models')
-
-elif training_model == 'modified_2D_versatile_fluo_1000x1000_v6':
-    if 0:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
-        shutil.copytree(model_pretrained.logdir, './models/modified_2D_versatile_fluo_1000x1000_v6')
-        model = StarDist2D(None, './models/modified_2D_versatile_fluo_1000x1000_v6')
-    else:
-        X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif"))
-        Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
-        model = StarDist2D(None, name = 'modified_2D_versatile_fluo_1000x1000_v6', basedir = 'models')
-
+print(model.config)
 
 assert all(Path(x).name==Path(y).name for x,y in zip(X,Y))
 X = list(map(imread,X))
@@ -129,7 +77,7 @@ ax[0, 0].imshow(X[0])
 ax[0, 1].imshow(Y[0])
 ax[1, 0].imshow(X[-1])
 ax[1, 1].imshow(Y[-1])
-plt.savefig('./test.png', dpi = 500)
+plt.savefig(f'./models/{model_name}/test.png', dpi = 500)
 plt.close()
 
 assert len(X) > 1, "not enough training data"
@@ -143,7 +91,6 @@ print('number of images: %3d' % len(X))
 print('- training:       %3d' % len(X_trn))
 print('- validation:     %3d' % len(X_val))
 
-
 median_size = calculate_extents(list(Y), np.median)
 fov = np.array(model._axes_tile_overlap('YX'))
 print(f"median object size:      {median_size}")
@@ -152,7 +99,7 @@ if any(median_size > fov):
     print("WARNING: median object size larger than field of view of the neural network.")
 
 if train_verb: 
-    model.train(X_trn, Y_trn, validation_data=(X_val, Y_val), augmenter=augmenter, epochs=100, steps_per_epoch=100)
+    model.train(X_trn, Y_trn, validation_data=(X_val, Y_val), augmenter=augmenter, epochs=150, steps_per_epoch=100)
 
 if optimize_verb:
     model.optimize_thresholds(X_val, Y_val)
@@ -165,5 +112,5 @@ if 1:
     ax.imshow(img, cmap = 'gray')
     ax1.imshow(img, cmap = 'gray')
     _draw_polygons(coord, points, prob, show_dist=True)
-    plt.savefig(f'example_X_val[0]_{training_model}.pdf', format = 'pdf')
+    plt.savefig(f'./models/{model_name}/example_X_val[0]_{model_name}.pdf', format = 'pdf')
     plt.close()

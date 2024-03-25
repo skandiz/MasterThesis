@@ -1,9 +1,9 @@
 #!/bin/bash
-#PBS -l select=4:ncpus=16:mpiprocs=64:mem=30GB
-#PBS -l walltime=6:00:00
-#PBS -q short_cpuQ
-#PBS -o test1.err
-#PBS -e test1.out
+#PBS -l select=1:ncpus=16:mem=30GB
+#PBS -l walltime=20:00:00
+#PBS -q long_cpuQ
+#PBS -o pbs_logs/training_logs.err
+#PBS -e pbs_logs/training_logs.out
 #PBS -M matteo.scandola@studenti.unitn.it
 #PBS -m abe
 

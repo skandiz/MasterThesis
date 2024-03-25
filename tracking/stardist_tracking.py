@@ -2,25 +2,30 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 mpl.rc('image', cmap='gray')
 import joblib
-parallel = joblib.Parallel(n_jobs = -1)
+import multiprocessing
+n_jobs = int(multiprocessing.cpu_count()*0.9)
+parallel = joblib.Parallel(n_jobs=n_jobs, backend='loky', verbose=0)
 import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw
 import cv2
 from tqdm import tqdm
 import random
-from stardist import _draw_polygons
+from stardist import fill_label_holes, random_label_cmap, calculate_extents, gputools_available, _draw_polygons
 from stardist.models import StarDist2D
 import trackpy as tp
 from tifffile import imsave, imread
-from tracking_utils import detect_features_frame, detect_features, test_detection, get_frame, interpolate_trajectory
+from csbdeep.utils import normalize
+from tracking_utils import *
 
-model_name = 'modified_2D_versatile_fluo_1000x1000' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
+model_name = 'modified_2D_versatile_fluo_1000x1000_v3' # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
+resolution = 1000
 model = StarDist2D(None, name = model_name, basedir = './models/')
 
-video_selection = "25b25r-1"
+video_selection = "49b1r"
+
 if video_selection == "25b25r-1":
-    xmin, ymin, xmax, ymax = 95, 30, 535, 470 
+    xmin, ymin, xmax, ymax = 95, 30, 535, 470
     merge_present = False   
 elif video_selection == "49b1r":
     xmin, ymin, xmax, ymax = 20, 50, 900, 930
@@ -40,13 +45,42 @@ fps = int(video.get(cv2.CAP_PROP_FPS))
 n_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 print(f'Video has {n_frames} frames with a resolution of {w}x{h} and a framerate of {fps} fps')
 
-test_verb = True
-detect_verb = False
+
+img = get_frame(video, 0, xmin, ymin, xmax, ymax, w, h, resolution, True)
+label, details = model.predict_instances(normalize(img), predict_kwargs = {'verbose' : False})
+coord, points, prob = details['coord'], details['points'], details['prob']
+
+img2 = get_frame(video, n_frames - 1, xmin, ymin, xmax, ymax, w, h, resolution, True)
+label2, details2 = model.predict_instances(normalize(img2), predict_kwargs = {'verbose' : False})
+coord2, points2, prob2 = details2['coord'], details2['points'], details2['prob']
+
+fig, ax = plt.subplots(1, 2, figsize = (10, 5), sharex=True, sharey=True)
+ax[0].imshow(img, cmap = 'gray')
+ax[0].set(title = 'Frame 0')
+_draw_polygons(coord, points, prob, show_dist=True)
+ax[1].imshow(img, cmap = 'gray')
+ax[1].set(title = f'{len(prob)} instances detected')
+plt.savefig(save_path + 'test_frame0.pdf', format = 'pdf')
+plt.close()
+
+fig, ax = plt.subplots(1, 2, figsize = (10, 5), sharex=True, sharey=True)
+ax[0].imshow(img2, cmap = 'gray')
+ax[0].set(title = f'Frame {n_frames - 1}')
+ax[1].imshow(img2, cmap = 'gray')
+_draw_polygons(coord2, points2, prob2, show_dist=True)
+ax[1].set(title = f'{len(prob2)} instances detected')
+plt.savefig(save_path + 'test_frame-1.pdf', format = 'pdf')
+plt.close()
+
+
+
+test_verb = False
+detect_verb = True
 link_verb = False
 interp_verb = False
 
-startFrame = 0
-endFrame = 100000 - 1
+startFrame = 50000
+endFrame = n_frames - 1
 
 if test_verb: 
     n_samples = 1000
@@ -55,14 +89,15 @@ if test_verb:
 if detect_verb:
     print(f'Processing from {int(startFrame/fps)} s to {int(endFrame/fps)} s')
     sample_frames = np.arange(startFrame, endFrame, 1, dtype=int)
-    raw_detection_df = detect_features(sample_frames, False, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, save_path)
+    raw_detection_df = detect_instances(sample_frames, False, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path)
+    #raw_detection_df = detect_instances_parallel(sample_frames, False, video_selection, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path)
     
     n_feature_per_frame = raw_detection_df.groupby('frame').count().x.values
     fig, ax = plt.subplots(2, 2, figsize = (8, 4))
     ax[0, 0].plot(raw_detection_df.frame.unique(), n_feature_per_frame, '.')
     ax[0, 0].set(xlabel = 'Frame', ylabel = 'N of droplets', title = 'N of droplets per frame')
     ax[0, 1].plot(raw_detection_df.r, '.')
-    ax[0, 1].set(xlabel = 'Feature index', ylabel = 'Radius [px]', title = 'Radius of features detected')
+    ax[0, 1].set(xlabel = 'Feature index', ylabel = 'Radius [px]', title = 'Radius of instances detected')
     ax[1, 0].scatter(raw_detection_df.r, raw_detection_df.eccentricity, s=0.1)
     ax[1, 0].set(xlabel = 'Radius [px]', ylabel='Eccentricity', title='R-eccentricity correlation')
     ax[1, 1].scatter(raw_detection_df.r, raw_detection_df.prob, s=0.1)
