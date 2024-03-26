@@ -18,14 +18,13 @@ from tqdm import tqdm
 from stardist import fill_label_holes, random_label_cmap, calculate_extents, gputools_available
 from csbdeep.utils import Path, normalize
 
-from utils import *
+from tracking_utils_old import *
 
 np.random.seed(42)
 lbl_cmap = random_label_cmap()
 
 # SETUP
 np.random.seed(0)
-
 num_droplets = 50
 time_steps = 100000
 fps = 100
@@ -46,53 +45,6 @@ repulsion_strength = 5*10**3
 # parameters for the Lennard-Jones potential
 epsilon = 2
 sigma = 2*droplet_radius
-
-
-fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-ax.plot(range(time_steps), v0_init * np.exp(-np.array(range(time_steps)) / time_constant))
-plt.savefig('./simulation/self_propulsion_velocity_decay.png')
-plt.close()
-
-test_pos = initial_droplet_positions(nFeatures = num_droplets, rFeature = droplet_radius, rMax = outer_radius - 30)
-distances = np.linalg.norm(test_pos, axis=1)
-boundary_indices = distances > outer_radius - repulsion_radius
-if np.any(boundary_indices):
-    directions = - test_pos / distances[:, np.newaxis]
-    forces = repulsion_strength / ((outer_radius - distances) ** 2)[:, np.newaxis]
-
-fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-for i in range(num_droplets):
-    if boundary_indices[i]:
-        ax.add_artist(plt.Circle((test_pos[i, 0], test_pos[i, 1]), droplet_radius, color='r', fill=True, alpha=0.5))
-    else:
-        ax.add_artist(plt.Circle((test_pos[i, 0], test_pos[i, 1]), droplet_radius, color='r', fill=False))
-ax.add_artist(plt.Circle((0, 0), outer_radius, color='b', fill=False))
-ax.quiver(test_pos[boundary_indices, 0], test_pos[boundary_indices, 1], (forces * directions)[boundary_indices, 0], (forces * directions)[boundary_indices, 1])
-ax.add_artist(plt.Circle((0, 0), outer_radius - repulsion_radius, color='b', fill=False))
-ax.set_xlim(-outer_radius , outer_radius)
-ax.set_ylim(-outer_radius, outer_radius)
-plt.savefig('./simulation/initial_droplet_positions.png', dpi = 300)
-plt.close()
-
-
-r_ij = test_pos[:, np.newaxis] - test_pos
-r_ij_m = np.linalg.norm(r_ij, axis=2)
-directions = r_ij / r_ij_m[:, :, np.newaxis]
-directions[np.isnan(directions)] = 0
-lj_force = 4 * epsilon * (12 * sigma**12 / r_ij_m**13 - 6 * sigma**6 / r_ij_m**7)
-lj_force[np.isnan(lj_force)] = 0
-forces = np.sum(lj_force[:, :, np.newaxis] * directions, axis=1)
-
-fig, (ax, ax1) = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
-for i in range(num_droplets):
-    ax.add_artist(plt.Circle((test_pos[i, 0], test_pos[i, 1]), droplet_radius, color='r', fill=False))
-ax.quiver(test_pos[:, 0], test_pos[:, 1], forces[:, 0], forces[:, 1], color='r')
-ax.set_xlim(-outer_radius, outer_radius)
-ax.set_ylim(-outer_radius, outer_radius)
-for i in range(num_droplets):
-    ax1.add_artist(plt.Circle((test_pos[i, 0] + forces[i, 0]*dt, test_pos[i, 1] + forces[i, 1]*dt), droplet_radius, color='r', fill=False))
-plt.savefig('./simulation/lennard_jones_interaction.png', dpi = 300)
-plt.close()
 
 
 if 0:
@@ -133,70 +85,58 @@ if 0:
 else:
     trajectories = pd.read_parquet('./simulation/simulated_trajectories_100_fps.parquet')
 
+frames = np.random.choice(trajectories.frame.unique(), size=10000, replace=False)
+resolution = 1000
+sc = int(resolution/500)
 
-if 0:
-    fig, ax = plt.subplots(1, 1, figsize = (10, 10))
-    anim_running = True
 
-    def onClick(event):
-        global anim_running
-        if anim_running:
-            ani.event_source.stop()
-            anim_running = False
-        else:
-            ani.event_source.start()
-            anim_running = True
-            
-    def update_graph(frame):
-        df = trajectories.loc[(trajectories.frame == frame), ["x", "y", "r"]]
-        for i in range(len(df)):
-            graph[i].center = (df.x.values[i], df.y.values[i])
-            graph[i].radius = df.r.values[i]
-        title.set_text(f'Tracking -- step = {frame} ')
-        return graph
+def create_gaussian(center, img_width, img_height, sigma, ampl):
+    center_x, center_y = center
+    x = np.linspace(0, img_width-1, img_width)
+    y = np.linspace(0, img_height-1, img_height)
+    X, Y = np.meshgrid(x, y)
+    gaussian = np.exp(-((X-center_x)**2 + (Y-center_y)**2) / (2.0 * sigma**2))
+    return np.round(ampl*(gaussian / np.max(gaussian))).astype(np.uint8)
 
-    title = ax.set_title(f'Tracking -- step = {0} ')
-    ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
-    df = trajectories.loc[(trajectories.frame == 0), ["x", "y", "r"]]
+@joblib.delayed
+def generate_synthetic_image_from_simulation_data(trajectories, frame, height, width, gaussian_sigma, gaussian_amplitude, color, scale, save_path, sharp_verb=False):
+    trajs = trajectories.loc[(trajectories.frame == frame), ["x", "y", "r"]]*scale
+    # create background image
+    image = np.random.randint(70, 75, (height, width), dtype=np.uint8)
+    # Draw the outer circle mimicking the petri dish
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2), 150)
+    cv2.circle(image, (int(height/2), int(width/2)), int(width/2)-4, 150)
+    image = cv2.GaussianBlur(image, (5, 5), 4)
+    
+    # initialize mask
+    mask = np.zeros((height, width), dtype=np.uint8)
+    list_of_centers = []
+    circles_array = np.zeros((height, width), dtype=np.uint8)
+    list_of_distances = []
+    for i in range(len(trajs)):
+        index = i + 1 
+        center = (int(width/2 + trajs.x.values[i]), int(height/2 + trajs.y.values[i]))
+        instance_radius = int(trajs.r.values[i])
+        cv2.circle(image, center, instance_radius, color, -1, lineType=8) 
+        circles_array += create_gaussian(center, width, height, gaussian_sigma, gaussian_amplitude)
+        cv2.circle(mask, center, instance_radius, (index), -1)
+    
+    if sharp_verb:
+        image = cv2.GaussianBlur(image, (5, 5), 2)
+        kernel = np.array([[0, -1, 0],
+                          [-1, 5,-1],
+                          [0, -1, 0]])
+        image = cv2.filter2D(image, ddepth=-1, kernel=kernel)
+    
+    # add gaussian profile to droplets
+    image += circles_array 
+    if save_path is not None: 
+        imwrite(save_path + f'image/frame_{frame}_{height}_resolution.tif', image, compression='zlib')
+        imwrite(save_path + f'mask/frame_{frame}_{height}_resolution.tif', mask, compression='zlib')
+    return image, mask
 
-    graph = []
-    for i in range(len(df)):
-        graph.append(ax.add_artist(plt.Circle((df.x.values[i], df.y.values[i]), df.r.values[i], fill = True, alpha = 0.5, color = 'b')))
-    ax.add_artist(plt.Circle((0, 0), outer_radius, color='r', fill=False))
-    ax.set_xlim(-outer_radius, outer_radius)
-    ax.set_ylim(-outer_radius, outer_radius)
-
-    fig.canvas.mpl_connect('button_press_event', onClick)
-    ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(time_steps), interval = 5, blit = False)
-    writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args = ['-vcodec', 'libx264'])
-    ani.save(f'./simulation/test.mp4', writer = writer)
-    plt.close()
-
-sample_frames = trajectories.frame.unique()
-test = parallel(
-                generate_synthetic_image_from_simulation_data_parallel(trajectories=trajectories,\
-                                                            frame=frame, height=500, width=500, gaussian_sigma=5,\
-                                                            gaussian_amplitude=20, color=100, sharp_verb=True)
-                for frame in tqdm(sample_frames)
-)
-test_img = np.array([i[0] for i in test])
-test_mask = np.array([i[1] for i in test])
-
-fig, ax = plt.subplots(1, 1, figsize = (10, 10))
-def update_graph(frame):
-    graph.set_data(test_img[frame])
-    title.set_text(f'Simulation -- frame = {sample_frames[frame]}')
-    return graph
-
-title = ax.set_title(f'Simulation -- frame = {0}')
-ax.set(xlabel = 'X [px]', ylabel = 'Y [px]')
-graph = ax.imshow(test_img[0], cmap='gray', vmin=0, vmax=255)
-
-ani = matplotlib.animation.FuncAnimation(fig, update_graph, range(test_img.shape[0]), interval = 5, blit=False)
-writer = matplotlib.animation.FFMpegWriter(fps = 30, metadata = dict(artist='Matteo Scandola'), extra_args=['-vcodec', 'libx264'])
-ani.save(f'./simulation/simulation_video.mp4', writer=writer)
-plt.close()
-
-for i in tqdm(range(len(test_img))):
-    imsave(f'./simulation/synthetic_dataset/image/synthetic_image_{i}.tif', test_img[i])
-    imsave(f'./simulation/synthetic_dataset/mask/synthetic_mask_{i}.tif', test_mask[i])
+if 1:
+    parallel(generate_synthetic_image_from_simulation_data(trajectories=trajectories,\
+                    frame=frame, height=500*sc, width=500*sc, gaussian_sigma=5*sc,\
+                    gaussian_amplitude=20, color=100, scale = sc, save_path = f'./simulation/synthetic_dataset_100_fps_v2/',\
+                    sharp_verb=True) for frame in tqdm(frames))

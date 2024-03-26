@@ -167,16 +167,23 @@ def detect_instances_parallel(frames, test_verb, video_selection, model, model_n
 def test_detection(n_samples, n_frames, nDrops, video_selection, merge_frame, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path):
     print(f"Testing detection on {n_samples} random frames")
     sample_frames = np.sort(np.random.choice(np.arange(0, n_frames, 1, dtype=int), n_samples, replace=False))
+    #print(sample_frames)
     raw_detection_df = detect_instances(frames = sample_frames, test_verb = True, video_selection = video_selection,\
                                        model = model, model_name = model_name, video = video, xmin = xmin, ymin = ymin,\
                                        xmax = xmax, ymax = ymax, w = w, h = h, resolution = resolution, save_path = save_path)
 
     n_instances_per_frame = raw_detection_df.groupby('frame').count().x.values
+
+    #print(n_instances_per_frame)
     if merge_frame is not None:
         pre_merge_frames = np.where(sample_frames < merge_frame)[0]
+        print(pre_merge_frames)
         post_merge_frames = np.where(sample_frames >= merge_frame)[0]
-        n_instances_per_frame_pre_merge = n_instances_per_frame[pre_merge_frames]
-        n_instances_per_frame_post_merge = n_instances_per_frame[post_merge_frames]
+        print(post_merge_frames)
+        n_instances_per_frame_pre_merge = raw_detection_df.loc[raw_detection_df.frame < merge_frame].groupby('frame').count().x.values#n_instances_per_frame[pre_merge_frames]
+        print(n_instances_per_frame_pre_merge)
+        n_instances_per_frame_post_merge = raw_detection_df.loc[raw_detection_df.frame >= merge_frame].groupby('frame').count().x.values#n_instances_per_frame[post_merge_frames]
+        print(n_instances_per_frame_post_merge)
         print(f"Frames with spurious effects pre merge:", len(np.where(n_instances_per_frame_pre_merge != 50)[0]), "/", len(pre_merge_frames))
         print(f"Frames with spurious effects post merge:", len(np.where(n_instances_per_frame_post_merge != 49)[0]), "/", len(post_merge_frames))        
     else:

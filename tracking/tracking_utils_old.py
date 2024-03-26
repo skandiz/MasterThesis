@@ -305,7 +305,7 @@ def short_range_align(T0, pos, orientations, align_radius):
                             np.cross(np.array([np.cos(orientations[n]), np.sin(orientations[n])]), r_ni[S]))
     return T
 
-def handle_boundary_repulsion(pos, repulsion_radius, repulsion_strength, dt):    
+def handle_boundary_repulsion(pos, outer_radius, repulsion_radius, repulsion_strength, dt):    
     distances = np.linalg.norm(pos, axis = 1) 
     boundary_indices = distances > outer_radius - repulsion_radius
     if np.any(boundary_indices):
