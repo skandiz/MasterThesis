@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=12:mem=20GB
+#PBS -l walltime=12:00:00
+#PBS -q VARIAMOLS_cpuQ
+#PBS -o ../pbs_logs/smoothing.out
+#PBS -e ../pbs_logs/smoothing.err
+#PBS -M matteo.scandola@studenti.unitn.it
+#PBS -m abe
+
+source ~/.bashrc
+conda activate csbdeep
+cd projects/MasterThesis/tracking/
+python3 estimate_smoothing.py

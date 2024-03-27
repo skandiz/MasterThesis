@@ -1,10 +1,10 @@
 Loading network weights from 'weights_best.h5'.
 Loading thresholds from 'thresholds.json'.
-Using default values: prob_thresh=0.857627, nms_thresh=0.3.
+Using default values: prob_thresh=0.886451, nms_thresh=0.3.
 Video has 80794 frames with a resolution of 920x960 and a framerate of 10 fps
-Processing from 0 s to 5000 s
-Number of errors: 22957 / 32269 --> 71.14%
-Number of errors: 1891 / 17731 --> 10.66%
-Max number of consecutive errors pre merge: 12537
-Max number of consecutive errors pre merge: 29
+Processing from 0 s to 4500 s
+Number of errors: 898 / 32269 --> 2.78%
+Number of errors: 119 / 12731 --> 0.93%
+Max number of consecutive errors pre merge: 31
+Max number of consecutive errors post merge: 10
 Importing linked trajectories...

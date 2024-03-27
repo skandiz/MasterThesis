@@ -1,8 +1,7 @@
 import joblib
 import multiprocessing
-n_jobs = int(multiprocessing.cpu_count()*0.9)
-parallel = joblib.Parallel(n_jobs=n_jobs, backend='multiprocessing', verbose=0)
-import random
+n_jobs = int(multiprocessing.cpu_count()*0.8)
+parallel = joblib.Parallel(n_jobs=n_jobs, backend='loky', verbose=0)
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw
@@ -15,34 +14,9 @@ from scipy.signal import savgol_filter
 from tifffile import imwrite, imread
 
 
-
 ##################################################################################################################
 #                                        PREPROCESSING FUNCTIONS                                                 #
 ##################################################################################################################
-"""
-def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
-    cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
-    ret, image = cap.read()
-    if preprocess:
-        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
-        alpha = Image.new('L', (w, h), 0)
-        draw = ImageDraw.Draw(alpha)
-        draw.pieslice(((x1, y1), (x2, y2)), 0, 360, fill=255)
-        npAlpha = np.array(alpha)
-        npImage = npImage*npAlpha
-        ind = np.where(npImage == 0)
-        npImage[ind] = npImage[200, 200]
-        npImage = npImage[y1:y2, x1:x2]
-        npImage = cv2.resize(npImage, (500, 500))
-        return npImage
-    elif not preprocess:
-        npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        npImage = npImage[y1:y2, x1:x2]
-        npImage = cv2.resize(npImage, (500, 500))
-        return npImage
-    else:
-        raise ValueError("preprocess must be a boolean")
-"""
 
 def get_frame(cap, frame, x1, y1, x2, y2, w, h, resolution, preprocess):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -70,6 +44,7 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, resolution, preprocess):
     else:
         raise ValueError("preprocess must be a boolean")
 
+
 ##################################################################################################################
 #                                           STARDIST FUNCTIONS                                                   #
 ##################################################################################################################
@@ -93,7 +68,7 @@ def detect_instances_frame(instance_properties_dict, frame, img, model):
 
 
 
-def detect_instances_from_images(frames, imgs_path, model):
+def detect_instances_from_images(frames, imgs_path, resolution, model):
     instance_properties_dict = {'frame':[], 'centroid-1':[], 'centroid-0':[], 'area':[], 'r':[], 'eccentricity':[],\
                                 'prob':[], 'area_bbox':[], 'area_convex':[], 'area_filled':[], 'axis_major_length':[],\
                                 'axis_minor_length':[], 'bbox-0':[], 'bbox-1':[], 'bbox-2':[], 'bbox-3':[],\
@@ -103,7 +78,7 @@ def detect_instances_from_images(frames, imgs_path, model):
                                 'label':[]}
 
     for frame in tqdm(frames):
-        img = imread(imgs_path + f'frame_{frame}.tif')
+        img = imread(imgs_path + f'frame_{frame}_{resolution}_resolution.tif')
         instance_properties_dict = detect_instances_frame(instance_properties_dict, frame, img, model)
 
     instance_properties_dict['r'] = np.sqrt(np.array(instance_properties_dict['area'])/np.pi)
@@ -167,31 +142,30 @@ def detect_instances_parallel(frames, test_verb, video_selection, model, model_n
 def test_detection(n_samples, n_frames, nDrops, video_selection, merge_frame, model, model_name, video, xmin, ymin, xmax, ymax, w, h, resolution, save_path):
     print(f"Testing detection on {n_samples} random frames")
     sample_frames = np.sort(np.random.choice(np.arange(0, n_frames, 1, dtype=int), n_samples, replace=False))
-    #print(sample_frames)
     raw_detection_df = detect_instances(frames = sample_frames, test_verb = True, video_selection = video_selection,\
-                                       model = model, model_name = model_name, video = video, xmin = xmin, ymin = ymin,\
-                                       xmax = xmax, ymax = ymax, w = w, h = h, resolution = resolution, save_path = save_path)
+                                        model = model, model_name = model_name, video = video, xmin = xmin, ymin = ymin,\
+                                        xmax = xmax, ymax = ymax, w = w, h = h, resolution = resolution, save_path = save_path)
 
     n_instances_per_frame = raw_detection_df.groupby('frame').count().x.values
-
-    #print(n_instances_per_frame)
     if merge_frame is not None:
-        pre_merge_frames = np.where(sample_frames < merge_frame)[0]
-        print(pre_merge_frames)
-        post_merge_frames = np.where(sample_frames >= merge_frame)[0]
-        print(post_merge_frames)
-        n_instances_per_frame_pre_merge = raw_detection_df.loc[raw_detection_df.frame < merge_frame].groupby('frame').count().x.values#n_instances_per_frame[pre_merge_frames]
-        print(n_instances_per_frame_pre_merge)
-        n_instances_per_frame_post_merge = raw_detection_df.loc[raw_detection_df.frame >= merge_frame].groupby('frame').count().x.values#n_instances_per_frame[post_merge_frames]
-        print(n_instances_per_frame_post_merge)
-        print(f"Frames with spurious effects pre merge:", len(np.where(n_instances_per_frame_pre_merge != 50)[0]), "/", len(pre_merge_frames))
-        print(f"Frames with spurious effects post merge:", len(np.where(n_instances_per_frame_post_merge != 49)[0]), "/", len(post_merge_frames))        
+        pre_merge_df = raw_detection_df.loc[raw_detection_df.frame < merge_frame]
+        pre_merge_frames = pre_merge_df.frame.unique()
+        post_merge_df = raw_detection_df.loc[raw_detection_df.frame >= merge_frame]
+        post_merge_frames = post_merge_df.frame.unique()
+        n_instances_per_frame_pre_merge = pre_merge_df.groupby('frame').count().x.values 
+        n_instances_per_frame_post_merge = post_merge_df.groupby('frame').count().x.values
+        err_pre_merge = len(np.where(n_instances_per_frame_pre_merge != 50)[0])
+        err_post_merge = len(np.where(n_instances_per_frame_post_merge != 49)[0])
+        tot_err = err_pre_merge + err_post_merge
+        print(f"Frames with spurious effects pre merge:", err_pre_merge , "/", len(pre_merge_frames))
+        print(f"Frames with spurious effects post merge:", err_post_merge, "/", len(post_merge_frames))        
     else:
-        print(f"Frames with spurious effects:", len(np.where(n_instances_per_frame != nDrops)[0]), "/", len(sample_frames))
+        tot_err = len(np.where(n_instances_per_frame != nDrops)[0])
+        print(f"Frames with spurious effects:", tot_err, "/", n_samples)
 
     fig, ax = plt.subplots(2, 2, figsize = (8, 4))
     ax[0, 0].plot(raw_detection_df.frame.unique(), n_instances_per_frame, '.')
-    ax[0, 0].set(xlabel = 'Frame', ylabel = 'N of droplets', title = 'N of droplets per frame')
+    ax[0, 0].set(xlabel = 'Frame', ylabel = 'N', title = f'N per frame -- {tot_err} / {n_samples} errors')
     ax[0, 1].plot(raw_detection_df.r, '.')
     ax[0, 1].set(xlabel = 'Feature index', ylabel = 'Radius [px]', title = 'Radius of instances detected')
     ax[1, 0].scatter(raw_detection_df.r, raw_detection_df.eccentricity, s=0.1)
@@ -199,14 +173,14 @@ def test_detection(n_samples, n_frames, nDrops, video_selection, merge_frame, mo
     ax[1, 1].scatter(raw_detection_df.r, raw_detection_df.prob, s=0.1)
     ax[1, 1].set(xlabel = 'Radius [px]', ylabel='Probability', title='R-Probability correlation')
     plt.tight_layout()
-    plt.savefig(save_path + f'test.png', dpi = 500)
+    plt.savefig(save_path + f'test_detection.png', dpi = 500)
     plt.close()
 
     try:
-        selected_frame = sample_frames[np.where(raw_detection_df.groupby('frame').count().x.values < nDrops)[0][0]]
+        selected_frame = sample_frames[np.where(raw_detection_df.groupby('frame').count().x.values != nDrops)[0][0]]
         img = get_frame(video, selected_frame, xmin, ymin, xmax, ymax, w, h, resolution, True)
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-        ax.set_title(f"Example of spurious effect at frame {selected_frame}")
+        ax.set_title(f"Example of spurious effect at frame {selected_frame}") 
         ax.imshow(img, cmap='gray')
         for i in range(len(raw_detection_df.loc[raw_detection_df.frame == selected_frame])):
             ax.add_artist(plt.Circle((raw_detection_df.loc[raw_detection_df.frame == selected_frame].x.values[i], raw_detection_df.loc[raw_detection_df.frame == selected_frame].y.values[i]), \
@@ -265,7 +239,6 @@ def get_smooth_trajs(trajs, windLen, orderofPoly):
     trajs_ret['y'] = trajs_ret.groupby('particle')['y'].transform(lambda y: savgol_filter(y, windLen, orderofPoly))
     return trajs_ret
 
-
 def interpolate_trajectory(group):
     interp_method = 'linear'
     all_frames = pd.DataFrame({"frame": range(group["frame"].min(), group["frame"].max() + 1)})
@@ -287,7 +260,7 @@ def interpolate_trajectory(group):
 ##################################################################################################################
 #                                        SIMULATION FUNCTIONS                                                    #
 ##################################################################################################################
-
+"""
 def overlap_between_circles(existing_circles, center, radius):
     for existing_center in existing_circles:
         distance = np.linalg.norm(np.array(existing_center) - np.array(center))
@@ -295,7 +268,7 @@ def overlap_between_circles(existing_circles, center, radius):
             return True
     return False
 
-def initial_droplet_positions(nInstances, rFeature, rMax):
+def initial_instance_positions(nInstances, rFeature, rMax):
     list_of_centers = []
     for i in range(nInstances):
         while True:
@@ -307,28 +280,71 @@ def initial_droplet_positions(nInstances, rFeature, rMax):
                 list_of_centers.append(center)
                 break
     return np.array(list_of_centers)
+"""
 
-# Function to check for collisions between droplets
-def handle_droplet_collisions(pos, droplet_radius):
+def overlap_between_circles(existing_circles, circle):
+    for existing_circle in existing_circles:
+        distance = np.linalg.norm(np.array(existing_circle[:2]) - np.array(circle[:2]))
+        if distance < existing_circle[2] + circle[2]:
+            return True
+    return False
+
+def initial_instance_positions(nInstances, radius_of_instances, outer_radius):
+    list_of_centers = []
+    for i in range(nInstances):
+        while True:
+            # Generate a random position inside the outer circle 
+            theta = random.uniform(0, 2 * np.pi)
+            r = random.uniform(0, outer_radius - max(radius_of_instances))
+            circle = (r * np.cos(theta), r * np.sin(theta), radius_of_instances[i])
+            if not overlap_between_circles(list_of_centers, circle):
+                list_of_centers.append(circle)
+                break
+    return np.array(list_of_centers)[:, :2]
+
+"""
+# Function to check for collisions between instances
+def handle_instance_collisions_old(pos, instance_radius):
     r_ij_m = np.linalg.norm(pos[:, np.newaxis] - pos, axis=2)
-    mask = np.tril(r_ij_m < 2 * droplet_radius, k=-1)
+    mask = np.tril(r_ij_m < 2 * instance_radius, k=-1)
     r_ij = (pos[:, np.newaxis] - pos) * mask[:, :, np.newaxis]
     # Normalize displacements
     norms = np.linalg.norm(r_ij, axis=2)
     norms[norms == 0] = 1 # Avoid division by zero
     r_ij_v = r_ij / norms[:, :, np.newaxis]
     # Calculate adjustment factor
-    adjustment = (2 * droplet_radius - r_ij_m) * mask
+    adjustment = (2 * instance_radius - r_ij_m) * mask
     # Apply adjustments to positions
     pos += np.sum(r_ij_v * (adjustment / 2)[:, :, np.newaxis], axis=1)
     pos -= np.sum(r_ij_v * (adjustment / 2)[:, :, np.newaxis], axis=0)
+"""
 
-def handle_boundary_collisions(pos, outer_radius, droplet_radius):
+# generalized to different radii
+def handle_instance_collisions(pos, instance_radius):
+    n = len(pos)
+    # Calculate pairwise distances between instances
+    r_ij_m = np.linalg.norm(pos[:, np.newaxis] - pos, axis=2)
+    # Define a mask to identify instances within the sum of their radii
+    mask = np.tril(r_ij_m < (instance_radius[:, np.newaxis] + instance_radius), k=-1)
+    # Calculate displacements between instances
+    r_ij = (pos[:, np.newaxis] - pos) * mask[:, :, np.newaxis]
+    # Normalize displacements
+    norms = np.linalg.norm(r_ij, axis=2)
+    norms[norms == 0] = 1  # Avoid division by zero
+    r_ij_v = r_ij / norms[:, :, np.newaxis]
+    # Calculate adjustment factor
+    adjustment = ((instance_radius[:, np.newaxis] + instance_radius) - r_ij_m) * mask
+    # Apply adjustments to positions
+    pos += np.sum(r_ij_v * (adjustment / 2)[:, :, np.newaxis], axis=1)
+    pos -= np.sum(r_ij_v * (adjustment / 2)[:, :, np.newaxis], axis=0)
+    
+
+def handle_boundary_collisions(pos, outer_radius, instance_radius):
     distances = np.linalg.norm(pos, axis=1)
     # Find indices where distances exceed the boundary
-    out_of_boundary_mask = distances > outer_radius - droplet_radius
+    out_of_boundary_mask = distances > outer_radius - instance_radius
     # Calculate adjustment factor for positions exceeding the boundary
-    adjustment = (outer_radius - droplet_radius) / distances[out_of_boundary_mask]
+    adjustment = (outer_radius - instance_radius) / distances[out_of_boundary_mask]
     # Apply adjustments to positions
     pos[out_of_boundary_mask] *= adjustment[:, np.newaxis]
 
@@ -343,7 +359,7 @@ def short_range_align(T0, pos, orientations, align_radius):
                             np.cross(np.array([np.cos(orientations[n]), np.sin(orientations[n])]), r_ni[S]))
     return T
 
-def handle_boundary_repulsion(pos, repulsion_radius, repulsion_strength, dt):    
+def handle_boundary_repulsion(pos, repulsion_radius, outer_radius, repulsion_strength, dt):    
     distances = np.linalg.norm(pos, axis = 1) 
     boundary_indices = distances > outer_radius - repulsion_radius
     if np.any(boundary_indices):
@@ -367,7 +383,6 @@ def lj_interaction(pos, epsilon, sigma, dt):
 #                                      SYNTHETIC DATASET GENERATION FUNCTIONS                                    #
 ##################################################################################################################
 
-
 def create_gaussian(center, img_width, img_height, sigma, ampl):
     center_x, center_y = center
     x = np.linspace(0, img_width-1, img_width)
@@ -376,7 +391,6 @@ def create_gaussian(center, img_width, img_height, sigma, ampl):
     gaussian = np.exp(-((X-center_x)**2 + (Y-center_y)**2) / (2.0 * sigma**2))
     return np.round(ampl*(gaussian / np.max(gaussian))).astype(np.uint8)
 
-@joblib.delayed
 def generate_synthetic_image_from_simulation_data(trajectories, frame, height, width, gaussian_sigma, gaussian_amplitude, color, scale, save_path, sharp_verb=False):
     trajs = trajectories.loc[(trajectories.frame == frame), ["x", "y", "r"]]*scale
     # create background image
@@ -406,7 +420,7 @@ def generate_synthetic_image_from_simulation_data(trajectories, frame, height, w
                           [0, -1, 0]])
         image = cv2.filter2D(image, ddepth=-1, kernel=kernel)
     
-    # add gaussian profile to droplets
+    # add gaussian profile to instances
     image += circles_array 
     if save_path is not None: 
         imwrite(save_path + f'image/frame_{frame}_{height}_resolution.tif', image, compression='zlib')

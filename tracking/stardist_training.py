@@ -29,27 +29,27 @@ if 0:
     from csbdeep.utils.tf import limit_gpu_memory
     limit_gpu_memory(fraction = 0.5, total_memory=5000)
 
-#model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian_modified_learning_rate'
-#model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_1000_resolution_modified_learning_rate'
-model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_v2_modified_learning_rate'
+model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian_only_optimization'
+#model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_1000_resolution_only_optimization'
+#model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_v2_only_optimization'
 
-if 0:
+if 1:
     model_pretrained = StarDist2D.from_pretrained('2D_versatile_fluo')
     shutil.copytree(model_pretrained.logdir, f'./models/{model_name}')
     model = StarDist2D(None, f'./models/{model_name}')
 
 if 1:
-    train_verb = True
+    train_verb = False
     optimize_verb = True
 
-    #X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif")) 
-    #Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
+    X = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/image/*.tif")) 
+    Y = sorted(glob("./simulation/synthetic_dataset_100_fps_r_decay_r_gaussian/mask/*.tif"))
     
     #X = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/image/*.tif")) 
     #Y = sorted(glob("./simulation/synthetic_dataset_100_fps_1000_resolution/mask/*.tif"))
 
-    X = sorted(glob("./simulation/synthetic_dataset_100_fps_v2/image/*.tif")) 
-    Y = sorted(glob("./simulation/synthetic_dataset_100_fps_v2/mask/*.tif"))
+    #X = sorted(glob("./simulation/synthetic_dataset_100_fps_v2/image/*.tif")) 
+    #Y = sorted(glob("./simulation/synthetic_dataset_100_fps_v2/mask/*.tif"))
 
     if model_name == 'new':
         n_rays = 32

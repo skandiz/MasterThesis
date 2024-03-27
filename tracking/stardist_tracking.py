@@ -18,17 +18,13 @@ import trackpy as tp
 
 from tracking_utils import *
 
-
-model_list = ["modified_2D_versatile_fluo_synthetic_dataset_100_fps_1000_resolution",\
-              "modified_2D_versatile_fluo_synthetic_dataset_100_fps_1000_resolution_modified_learning_rate",\
-              "modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian",\
-              "modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian_modified_learning_rate",\
-              "modified_2D_versatile_fluo_synthetic_dataset_100_fps_v2",\
-              "modified_2D_versatile_fluo_synthetic_dataset_100_fps_v2_modified_learning_rate"]
 #model_name = "stardist_trained"          # stardist model trained for 50 epochs on simulated synthetic dataset
 #model_name = "modified_2D_versatile_fluo" # stardist model trained for 150 epochs on simulated dataset starting from the pretrained 2D versatile fluo model
-model_name = "modified_2D_versatile_fluo_1000x1000_v2"
+#model_name = "modified_2D_versatile_fluo_1000x1000_v2"
 
+#model_name = "modified_2D_versatile_fluo_synthetic_dataset_100_fps_v2_only_optimization"
+#model_name = "modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian_only_optimization"
+model_name = "modified_2D_versatile_fluo_synthetic_dataset_100_fps_1000_resolution_only_optimization"
 
 resolution = 1000
 model = StarDist2D(None, name = model_name, basedir = "./models/")
@@ -89,8 +85,8 @@ plt.close()
 
 test_verb = True
 detect_verb = False
-link_verb = True
-interp_verb = True
+link_verb = False
+interp_verb = False
 
 startFrame = 0
 endFrame = n_frames
