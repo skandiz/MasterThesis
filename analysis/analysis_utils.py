@@ -18,8 +18,7 @@ def trim_up_to_char(s, char):
         return s[:index]
     return s
 
-
-def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
+def get_frame(cap, frame, x1, y1, x2, y2, w, h, resolution, preprocess):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
     ret, image = cap.read()
     if preprocess:
@@ -32,12 +31,15 @@ def get_frame(cap, frame, x1, y1, x2, y2, w, h, preprocess):
         ind = np.where(npImage == 0)
         npImage[ind] = npImage[200, 200]
         npImage = npImage[y1:y2, x1:x2]
-        npImage = cv2.resize(npImage, (500, 500))
+        if npImage.shape[0] > resolution: # if the image is too large --> shrinking with INTER_AREA interpolation
+            npImage = cv2.resize(npImage, (resolution, resolution), interpolation = cv2.INTER_AREA)
+        else: # if the image is too small --> enlarging with INTER_LINEAR interpolation
+            npImage = cv2.resize(npImage, (resolution, resolution), interpolation = cv2.INTER_CUBIC)
         return npImage
     elif not preprocess:
         npImage = np.array(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         npImage = npImage[y1:y2, x1:x2]
-        npImage = cv2.resize(npImage, (500, 500))
+        npImage = cv2.resize(npImage, (resolution, resolution))
         return npImage
     else:
         raise ValueError("preprocess must be a boolean")
@@ -77,7 +79,7 @@ def exp(t, A, tau):
 def fit_hist(y, bins_, distribution, p0_):
     bins_c = bins_[:-1] + np.diff(bins_) / 2
     bin_heights, _ = np.histogram(y, bins = bins_, density = True)
-    ret, pcov = curve_fit(distribution, bins_c, bin_heights, p0 = p0_, maxfev = 1000)
+    ret, pcov = curve_fit(distribution, bins_c, bin_heights, p0 = p0_, maxfev = 2000)
     ret_std = np.sqrt(np.diag(pcov))
     return ret, ret_std
 
@@ -100,7 +102,7 @@ def get_trajs(nDrops, red_particle_idx, trajs, subsample_factor, fps):
 def powerLawFit(f, x, nDrops, yerr):
     if nDrops == 1:
         ret = np.zeros((2, 2))
-        ret[0], pcov = curve_fit(powerLaw, x, f, p0 = [1., 1.], maxfev = 1000)
+        ret[0], pcov = curve_fit(powerLaw, x, f, p0 = [1., 1.], maxfev = 2000)
         ret[1] = np.sqrt(np.diag(pcov))
         fit = ret[0, 0] * x**ret[0, 1]
     else:
@@ -108,9 +110,9 @@ def powerLawFit(f, x, nDrops, yerr):
         ret = np.zeros((nDrops, 2, 2))
         for i in range(nDrops):
             if yerr is None:
-                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], maxfev = 1000)
+                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], maxfev = 2000)
             else:
-                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], sigma = yerr, maxfev = 1000)
+                ret[i, 0], pcov = curve_fit(powerLaw, x, f[i], p0 = [1., 1.], sigma = yerr, maxfev = 2000)
             ret[i, 1] = np.sqrt(np.diag(pcov))
             fit[i] = ret[i, 0, 0] * x**ret[i, 0, 1]
     return fit, ret 
@@ -309,7 +311,7 @@ def get_rdf(frames, trajectories, red_particle_idx, rList, dr, progress_verb):
             rdf_frame(frame, trajectories, n_blue, n_red, red_particle_idx, rList, dr, rho_b, rho_r)
             for frame in frames)
         )
-    return rdf_b, rdf_r, rdf_br
+    return np.array(rdf_b), np.array(rdf_r), np.array(rdf_br)
 
 @joblib.delayed
 def rdf_center_frame(frame, COORDS, r_c, rList, dr, rho, nDrops):

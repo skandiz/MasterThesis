@@ -43,32 +43,50 @@ motif_verb = False
 #                                               IMPORT DATA
 #############################################################################################################
 if 1:
-    video_selection = '49b1r_post_merge'
+    video_selection =  '25b25r-1'
+    model_name = 'modified_2D_versatile_fluo_synthetic_dataset_100_fps_r_decay_r_gaussian_only_optimization'
+
     if video_selection == '25b25r-1':
-        nDrops             = 50
+        original_trajectories = pd.read_parquet(f'../tracking/25b25r-1/{model_name}/25b25r-1_subsampled3_smoothed_windlen10_orderofpoly4', engine='pyarrow')
+
+        subsample_factor = 3
+        fps = 10
+        nDrops = 50
         xmin, ymin, xmax, ymax = 95, 30, 535, 470    
-        pxDimension = 90/500 # 9cm is the petri dish --> 90mm
-        red_particle_idx = np.sort(np.array([38, 42, 25, 4, 23, 13, 45, 33, 46, 29, 10, 3, 35, 18, 12, 0, 27, 19, 26, 47, 7, 48, 21, 20, 22], dtype=int))
-        original_trajectories = pd.read_parquet('../tracking/25b25r-1/modified_2D_versatile_fluo/interpolated_tracking_25b25r-1_modified_2D_versatile_fluo_0_539999.parquet')
+        resolution = 1000
+        pxDimension = 90/resolution # 9cm is the petri dish --> 90mm
+        red_particle_idx = np.sort(np.array([21, 14, 18, 5, 15, 44, 35, 20, 27, 40, 19, 46, 29, 30, 16, 17, 24, 9, 1, 32, 7, 22, 25, 49, 36], dtype=int))
+        original_trajectories.particle = original_trajectories.particle.astype(int)
+        original_trajectories = original_trajectories.sort_values(by=['frame', 'particle'])
         original_trajectories.r = original_trajectories.r * pxDimension
-        original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
 
     elif video_selection == '49b1r':
-        nDrops             = 50
+        original_trajectories = pd.read_parquet(f'../tracking/{video_selection}/{model_name}/49b1r_subsampled1_smoothed_windlen10_orderofpoly4_pre_merge', engine='pyarrow')
+        1
+        fps = 10
+        nDrops = 50
         xmin, ymin, xmax, ymax = 20, 50, 900, 930
-        pxDimension = 90/500 
-        original_trajectories = pd.read_parquet('../tracking/49b1r/modified_2D_versatile_fluo/interpolated_tracking_49b1r_modified_2D_versatile_fluo_pre_merge.parquet')
+        resolution = 1000
+        pxDimension = 90/resolution 
+        merge_frame = 32268
+        
+        original_trajectories = original_trajectories[original_trajectories.frame < merge_frame]
+        original_trajectories.particle = original_trajectories.particle.astype(int)
+        original_trajectories = original_trajectories.sort_values(by=['frame', 'particle'])
         original_trajectories.r = original_trajectories.r * pxDimension
-        original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
-        red_particle_idx = np.array([19]).astype(int)
+        red_particle_idx = np.array([18]).astype(int)
 
     elif video_selection == '49b1r_post_merge':
-        nDrops             = 49
+        original_trajectories = pd.read_parquet(f'../tracking/{video_selection}/{model_name}/49b1r_subsampled1_smoothed_windlen10_orderofpoly4_post_merge', engine='pyarrow')
+        1
+        fps = 10
+        nDrops = 49
         xmin, ymin, xmax, ymax = 20, 50, 900, 930
-        pxDimension = 90/500 
-        original_trajectories = pd.read_parquet('../tracking/49b1r/modified_2D_versatile_fluo/interpolated_tracking_49b1r_modified_2D_versatile_fluo_post_merge.parquet')
+        resolution = 1000
+        pxDimension = 90/resolution
+        original_trajectories.particle = original_trajectories.particle.astype(int)
+        original_trajectories = original_trajectories.sort_values(by=['frame', 'particle'])
         original_trajectories.r = original_trajectories.r * pxDimension
-        original_trajectories = original_trajectories.loc[:, ['x', 'y', 'r', 'frame', 'particle', 'color']]
         red_particle_idx = np.array([15]).astype(int)
 
     windowLenght = 600 # seconds
@@ -84,12 +102,15 @@ if 1:
     video.set(cv2.CAP_PROP_POS_FRAMES, 0)
     w = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(video.get(cv2.CAP_PROP_FPS))
-    subsample_factor = 1#int(fps/10)
-    n_frames_video = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    print(f'Video has {n_frames_video} frames with a resolution of {w}x{h} and a framerate of {fps} fps')
+    video_fps = int(video.get(cv2.CAP_PROP_FPS))
 
+    n_frames_video = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f'Video has {n_frames_video} frames with a resolution of {w}x{h} and a framerate of {video_fps} fps')
+
+
+    print("Stardist trajectory properties:")
     frames = original_trajectories.frame.unique().astype(int)
+
     nFrames = len(frames)
     print(f'Number of Droplets: {nDrops}')
     print(f'Number of Frames: {nFrames} at {fps} fps --> {nFrames/fps:.2f} s')
@@ -123,21 +144,94 @@ if 1:
     default_kwargs_red2  = {'color': '#880808', 'ec': (0, 0, 0, 0.6), 'density': True}
     default_kwargs_red3  = {'color': '#D2042D', 'ec': (0, 0, 0, 0.6), 'density': True}
 
-    print('Smoothing trajectories..')
-    trajectories = get_smooth_trajs(original_trajectories, nDrops, int(fps/2), 4)
+    trajectories = original_trajectories.copy()
+    del original_trajectories
+    #print('Smoothing trajectories..')
+    #trajectories = get_smooth_trajs(original_trajectories, nDrops, int(fps/2), 4)
 
     if 1:
-        df = trajectories.loc[trajectories.frame == 0]
+        df = trajectories.loc[trajectories.frame == frames[0]]
+        df1 = trajectories.loc[trajectories.frame == frames[fps]]
+
+        fig, ax = plt.subplots(1, 1, figsize = (5, 5))
+        ax.imshow(get_frame(video, frames[0]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df)):
+            ax.text(df.x.iloc[i], df.y.iloc[i], df.particle.iloc[i], color = 'white', horizontalalignment = 'center', verticalalignment = 'center', fontsize = 6)
+        if save_verb:
+            plt.savefig(f'./{res_path}/droplet_ids.png', bbox_inches='tight', dpi = 300)
+            plt.savefig(f'./{pdf_res_path}/droplet_ids.pdf', bbox_inches='tight')
+        if show_verb:
+            plt.show()
+        else:
+            plt.close()
+
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (10, 5), sharex = True, sharey = True)
+        ax.imshow(get_frame(video, frames[0]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df)):
+            ax.text(df.x.iloc[i], df.y.iloc[i], df.particle.iloc[i], color = 'black', fontsize = 6, horizontalalignment='center', verticalalignment='center')
+            ax.add_artist(plt.Circle((df.x.iloc[i], df.y.iloc[i]), df.r.iloc[i]/pxDimension, color = colors[i], fill = False, linewidth=1))
+        ax1.imshow(get_frame(video, frames[fps]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df1)):
+            ax1.text(df1.x.iloc[i], df1.y.iloc[i], df1.particle.iloc[i], color = 'black', fontsize = 6, horizontalalignment='center', verticalalignment='center')
+            ax1.add_artist(plt.Circle((df1.x.iloc[i], df1.y.iloc[i]), df1.r.iloc[i]/pxDimension, color = colors[i], fill = False, linewidth=1))
+        ax.set(xticks=[], yticks=[], title = 'T = 0 s')
+        ax1.set(xticks=[], yticks=[], title = 'T = 1 s')
+        # Add line from one subplot to the other
+        xyA = [df.x.iloc[0], df.y.iloc[0]]
+        ax.plot(*xyA, "o")
+        xyB = [df1.x.iloc[0], df1.y.iloc[0]]
+        ax1.plot(*xyB, "o")
+        # ConnectionPatch handles the transform internally so no need to get fig.transFigure
+        arrow = mpl.patches.ConnectionPatch(
+            xyA,
+            xyB,
+            coordsA=ax.transData,
+            coordsB=ax1.transData,
+            # Default shrink parameter is 0 so can be omitted
+            color="black",
+            arrowstyle="-|>",  # "normal" arrow
+            mutation_scale=30,  # controls arrow head size
+            linewidth=3,
+        )
+        fig.patches.append(arrow)
+        if save_verb:
+            plt.savefig(f'./{res_path}/identity2.png', bbox_inches='tight', dpi = 300)
+            plt.savefig(f'./{pdf_res_path}/identity2.pdf', bbox_inches='tight')
+        if show_verb:
+            plt.show()
+        else:
+            plt.close()
+
+        fig, (ax, ax1) = plt.subplots(1, 2, figsize = (10, 5), sharex = True, sharey = True)
+        ax.imshow(get_frame(video, frames[0]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df)):
+            ax.text(df.x.iloc[i], df.y.iloc[i], df.particle.iloc[i], color = 'black', fontsize = 6, horizontalalignment='center', verticalalignment='center')
+            ax.add_artist(plt.Circle((df.x.iloc[i], df.y.iloc[i]), df.r.iloc[i]/pxDimension, color = colors[i], fill = False, linewidth=1))
+        ax1.imshow(get_frame(video, frames[fps]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df1)):
+            ax1.text(df1.x.iloc[i], df1.y.iloc[i], df1.particle.iloc[i], color = 'black', fontsize = 6, horizontalalignment='center', verticalalignment='center')
+            ax1.add_artist(plt.Circle((df1.x.iloc[i], df1.y.iloc[i]), df1.r.iloc[i]/pxDimension, color = colors[i], fill = False, linewidth=1))
+        ax.set(xticks=[], yticks=[], title = 'T = 0 s')
+        ax1.set(xticks=[], yticks=[], title = 'T = 1 s')
+        if save_verb:
+            plt.savefig(f'./{res_path}/identity.png', bbox_inches='tight', dpi = 300)
+            plt.savefig(f'./{pdf_res_path}/identity.pdf', bbox_inches='tight')
+        if show_verb:
+            plt.show()
+        else:
+            plt.close()
+        plt.close()
+
         df1 = trajectories.loc[trajectories.frame == frames[-1]]
         fig, (ax, ax1) = plt.subplots(1, 2, figsize = (10, 5))
-        ax.imshow(get_frame(video, 0, xmin, ymin, xmax, ymax, w, h, False))
+        ax.imshow(get_frame(video, frames[0]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
         for i in range(len(df)):
             if i in red_particle_idx:
                 ax.add_artist(plt.Circle((df.x.iloc[i], df.y.iloc[i]), df.r.iloc[i]/pxDimension, color = 'red', fill = False))
             else:
                 ax.add_artist(plt.Circle((df.x.iloc[i], df.y.iloc[i]), df.r.iloc[i]/pxDimension, color = 'blue', fill = False))
-        ax1.imshow(get_frame(video, frames[-1], xmin, ymin, xmax, ymax, w, h, False))
-        for i in range(len(df)):
+        ax1.imshow(get_frame(video, frames[-1]*subsample_factor, xmin, ymin, xmax, ymax, w, h, resolution, False))
+        for i in range(len(df1)):
             if i in red_particle_idx:
                 ax1.add_artist(plt.Circle((df1.x.iloc[i], df1.y.iloc[i]), df1.r.iloc[i]/pxDimension, color = 'red', fill = False))
             else:
@@ -146,8 +240,28 @@ if 1:
         ax1.set(xticks=[], yticks=[], title = 'Final Frame')
         plt.tight_layout()
         if save_verb:
-            plt.savefig(f'./{res_path}/initial_final_frame.png', bbox_inches='tight')
-            #plt.savefig(f'{pdf_res_path}/initial_final_frame.pdf', bbox_inches='tight')
+            plt.savefig(f'./{res_path}/initial_final_frame.png', bbox_inches='tight', dpi = 300)
+            plt.savefig(f'./{pdf_res_path}/initial_final_frame.pdf', bbox_inches='tight')
+        if show_verb:
+            plt.show()
+        else:
+            plt.close()
+
+        temp_df = trajectories.loc[trajectories.particle.isin([1, 2, 3]) & (trajectories.frame < 1000), ['x', 'y', 'particle', 'frame']]
+        fig, ax = plt.subplots(1, 1, figsize = (7, 5))
+        for i in temp_df.particle.unique():
+            df = temp_df.loc[temp_df.particle == i]
+            ax.plot(df.x, df.y, label = f'Droplet {i}', color = f'C{i}')
+            ax.add_artist(plt.Circle((df.x.iloc[0], df.y.iloc[0]), 5, facecolor = f'C{i}', fill = True, zorder = 10, edgecolor = 'black'))
+            ax.add_artist(plt.Circle((df.x.iloc[-1], df.y.iloc[-1]), 5, facecolor = f'C{i}', fill = True, zorder = 10, edgecolor = 'black'))
+        ax.set(xlim = (0, resolution), ylim = (0, resolution))
+        ax.set(xticks=[], yticks=[], title='Sample of trajectories')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if save_verb:
+            plt.savefig(f'./{res_path}/sample_trajs.png', bbox_inches='tight', dpi = 300)
+            plt.savefig(f'./{pdf_res_path}/sample_trajs.pdf', bbox_inches='tight')
         if show_verb:
             plt.show()
         else:
@@ -757,7 +871,7 @@ if velocity_verb:
 
     print(f'Speed distribution analysis...')
 
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, subsample_factor, fps)
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, 1, fps)
     v_blue = ys.speed_ensemble(blueTrajs, step = 1)*pxDimension
     v_red  = ys.speed_ensemble(redTrajs, step = 1)*pxDimension
     mean_v_blue = np.mean(v_blue)
@@ -839,7 +953,7 @@ if velocity_verb:
 
     print('Windowed speed distribution analysis...')
     v_blue_wind, v_red_wind = speed_windowed(nDrops, nSteps, startFrames, endFrames,\
-                                             red_particle_idx, trajectories, subsample_factor, fps, )
+                                             red_particle_idx, trajectories, 1, fps, progress_verb = True)
     v_blue_wind = np.array(v_blue_wind)*pxDimension
     v_red_wind  = np.array(v_red_wind)*pxDimension
     v_blue_wind_mean = np.mean(v_blue_wind, axis = 1)
@@ -1108,12 +1222,12 @@ if velocity_verb:
 #                                              TURNING ANGLES ANALYSIS
 #############################################################################################################
 if turning_angles_verb:
-    bin_borders_turn = np.arange(-np.pi, np.pi + 0.0001, np.pi/50)
+    bin_borders_turn = np.linspace(-np.pi, np.pi, 201)
     bin_centers_turn = bin_borders_turn[:-1] + np.diff(bin_borders_turn) / 2
     x_interval_for_fit_turn = np.linspace(bin_borders_turn[0], bin_borders_turn[-1], 10000)
 
     print(f'Turning angles analysis...')
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, subsample_factor, fps)
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, 1, fps)
     theta_blue = ys.turning_angles_ensemble(blueTrajs, centered = True)
     theta_red  = ys.turning_angles_ensemble(redTrajs, centered = True)
 
@@ -1202,7 +1316,8 @@ if turning_angles_verb:
             plt.close()
 
     print('Windowed turning angles analysis...')
-    theta_blue_wind, theta_red_wind = turning_angles_windowed(nDrops, nSteps, startFrames, endFrames, red_particle_idx, trajectories, subsample_factor, fps)
+    theta_blue_wind, theta_red_wind = turning_angles_windowed(nDrops, nSteps, startFrames, endFrames, \
+                                                              red_particle_idx, trajectories, 1, fps, progress_verb = True)
 
     # fit windowed turning angles distributions with normal distribution
     blue_fit_wind_turn_gaussian = np.ones((nSteps, 2, 2))
@@ -1484,7 +1599,7 @@ if turning_angles_verb:
 if velocity_autocovariance_verb:
     print('Velocity autocovariance analysis...')
 
-    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, subsample_factor, fps)
+    blueTrajs, redTrajs = get_trajs(nDrops, red_particle_idx, trajectories, 1, fps, progress_verb = True)
     #Global Velocity Autocovariance
     vacf_b, vacf_std_b = ys.vacf(blueTrajs, time_avg=True, lag = maxLagtime)
     vacf_r, vacf_std_r = ys.vacf(redTrajs, time_avg=True, lag = maxLagtime)
@@ -1513,7 +1628,9 @@ if velocity_autocovariance_verb:
 
     print('Windowed velocity autocovariance analysis...')
     if run_analysis_verb:
-        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = vacf_windowed(trajectories, nSteps, startFrames, endFrames, red_particle_idx, subsample_factor, fps, maxLagtime)
+        vacf_b_wind, vacf_b_std_wind, vacf_r_wind, vacf_r_std_wind = vacf_windowed(trajectories, nSteps, startFrames,\
+                                                                                   endFrames, red_particle_idx, 1, fps, maxLagtime,\
+                                                                                   progress_verb = True)
         vacf_b_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_b_wind.parquet')
         vacf_b_std_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_b_std_wind.parquet')
         vacf_r_wind.to_parquet(f'./{analysis_data_path}/vacf/vacf_r_wind.parquet')
@@ -1740,42 +1857,42 @@ if velocity_autocovariance_verb:
 #                                              RDF ANALYSIS
 #############################################################################################################
 if rdf_verb:
-    print(f'Radial distribution function analysis...')
-    n_red = len(red_particle_idx)
-    n_blue = nDrops - n_red
-    dr = trajectories.r.mean()
+    print(f'RDF - {system_name}')
+
+    dr = trajectories.r.mean() / pxDimension / 5
     # center of petri dish --> to refine
-    r_c   = [(xmax-xmin)+ xmin, (ymax-ymin)+ ymin]
-    rDisk = (xmax-xmin)/2
-    rList = np.arange(0, 2*rDisk, 1)
-    rho_b = n_blue/(np.pi*rDisk**2)
-    rho_r = n_red/(np.pi*rDisk**2) 
-    rho   = nDrops/(np.pi*rDisk**2)
+    r_c = [(xmax-xmin)+ xmin, (ymax-ymin)+ ymin]
+    rDisk = (xmax-xmin)/2 * resolution/(xmax-xmin)
+    rList = np.linspace(0, 2*rDisk, int(2*rDisk/dr))
 
     if run_analysis_verb:
-        rdf = get_rdf(frames, trajectories, red_particle_idx, rList, dr, rho_b, rho_r, n_blue, n_red)
-        rdf_b  = rdf[:, 0, :]
+        rdf_frames = frames
+        rdf_b, rdf_r, rdf_br = get_rdf(rdf_frames, trajectories, red_particle_idx, rList, dr, progress_verb = True)
         rdf_b_df = pd.DataFrame(rdf_b)
         rdf_b_df.columns = [f'{r}' for r in rList]
-        rdf_b_df['frame'] = frames
-        rdf_b_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_b.parquet')
+        rdf_b_df['frame'] = rdf_frames
+        rdf_b_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_b_{dr}.parquet')
 
-        rdf_r  = rdf[:, 1, :]
         rdf_r_df = pd.DataFrame(rdf_r)
         rdf_r_df.columns = [f'{r}' for r in rList]
-        rdf_r_df['frame'] = frames
-        rdf_r_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_r.parquet')
+        rdf_r_df['frame'] = rdf_frames
+        rdf_r_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_r_{dr}.parquet')
 
-        rdf_br = rdf[:, 2, :]
         rdf_br_df = pd.DataFrame(rdf_br)
         rdf_br_df.columns = [f'{r}' for r in rList]
-        rdf_br_df['frame'] = frames
-        rdf_br_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_br.parquet')
+        rdf_br_df['frame'] = rdf_frames
+        rdf_br_df.to_parquet(f'./{analysis_data_path}/rdf/rdf_br_{dr}.parquet')
     elif not run_analysis_verb:
         try:
-            rdf_b = np.array(pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_b.parquet'))
-            rdf_r = np.array(pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_r.parquet'))
-            rdf_br = np.array(pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_br.parquet'))
+            temp = pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_b_{dr}.parquet')
+            rdf_frames = np.array(temp.loc[:, temp.columns == 'frame'])
+            rdf_b = np.array(temp.loc[:, temp.columns != 'frame'])
+
+            temp = pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_r_{dr}.parquet')
+            rdf_r = np.array(temp.loc[:, temp.columns != 'frame'])
+
+            temp = pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_br_{dr}.parquet')
+            rdf_br = np.array(temp.loc[:, temp.columns != 'frame'])
         except: 
             raise ValueError('rdf data not found. Run analysis first.')
     else: 
@@ -1797,7 +1914,7 @@ if rdf_verb:
         fig.colorbar(img, ax=ax)
         ax.set_aspect('auto')
         if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_b.png', bbox_inches='tight')
+            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_b_{dr}.png', bbox_inches='tight')
             #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_b.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
@@ -1813,7 +1930,7 @@ if rdf_verb:
         fig.colorbar(img, ax=ax)
         ax.set_aspect('auto')
         if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_r.png', bbox_inches='tight')
+            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_r_{dr}.png', bbox_inches='tight')
             #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_r.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
@@ -1830,7 +1947,7 @@ if rdf_verb:
         fig.colorbar(img, ax=ax)
         ax.set_aspect('auto')
         if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_br.png', bbox_inches='tight')
+            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_heatmap_br_{dr}.png', bbox_inches='tight')
             #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_heatmap_br.pdf', bbox_inches='tight')
         if show_verb: 
             plt.show()
@@ -1861,7 +1978,7 @@ if rdf_verb:
             ax.set(ylim = (-0.5, v_max), ylabel = 'g(r)', xlabel = 'r (mm)')
             ax.grid(linewidth = 0.2)
             fig.canvas.mpl_connect('button_press_event', onClick)
-            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_b.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_b_{dr}.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
             if show_verb:
                 plt.show()
             else:
@@ -1888,7 +2005,7 @@ if rdf_verb:
             ax.set(ylim = (-0.5, v_max), ylabel = 'g(r)', xlabel = 'r (mm)')
             ax.grid(linewidth = 0.2)
             fig.canvas.mpl_connect('button_press_event', onClick)
-            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_r.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_r_{dr}.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
             if show_verb:
                 plt.show()
             else:
@@ -1915,84 +2032,7 @@ if rdf_verb:
             ax.set(ylim = (-0.5, v_max), ylabel = 'g(r)', xlabel = 'r (mm)')
             ax.grid(linewidth = 0.2)
             fig.canvas.mpl_connect('button_press_event', onClick)
-            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_br.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
-            if show_verb:
-                plt.show()
-            else:
-                plt.close()
-
-    if run_analysis_verb:
-        print(print(f'Radial distribution function from center analysis...'))
-        rdf_c = get_rdf_center(frames, trajectories, r_c, rList, dr, rho, nDrops)
-        rdf_c_df = pd.DataFrame(rdf_c)
-        # string columns for parquet filetype
-        rdf_c_df.columns = [str(i) for i in rList]
-        pd.DataFrame(rdf_c_df).to_parquet(f'./{analysis_data_path}/rdf/rdf_center.parquet')
-    if not run_analysis_verb :
-        try:
-            rdf_c = np.array(pd.read_parquet(f'./{analysis_data_path}/rdf/rdf_center.parquet'))
-        except: 
-            raise ValueError('rdf data not found. Run analysis verbosely first.')
-
-    if plot_verb:
-        timearr = np.linspace(0, rdf_c.shape[0], 10)/fps
-        timearr = timearr.astype(int)
-
-        fig, ax = plt.subplots(1, 1, figsize = (10, 4))
-        ax.plot(rList, rdf_c.mean(axis=0), label='mean')
-        ax.fill_between(rList, rdf_c.mean(axis=0) - rdf_c.std(axis=0), \
-                            rdf_c.mean(axis=0) + rdf_c.std(axis=0), alpha=0.3, label='std')
-        ax.set(xlabel = 'r [mm]', ylabel = 'g(r)', title = f'RDF from center - {system_name}')
-        ax.legend()
-        if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_center.png', bbox_inches='tight' )
-            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center.pdf', bbox_inches='tight' )
-        if show_verb: 
-            plt.show()
-        else:
-            plt.close()
-
-        g_plot = rdf_c.T
-        fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-        img = ax.imshow(g_plot, vmin = 0, vmax = 10)
-        ax.set(xticks = np.linspace(0, g_plot.shape[1], 10), yticks = np.linspace(0, g_plot.shape[0], 10))
-        ax.set(xticklabels = timearr, yticklabels = np.linspace(0, rDisk, 10).astype(int))
-        ax.set(xlabel = 'Time [s]', ylabel = 'r [mm]', title = f'rdf from center heatmap - {system_name}')
-        fig.colorbar(img, ax=ax)
-        ax.set_aspect('auto')
-        if save_verb: 
-            plt.savefig(f'./{res_path}/radial_distribution_function/rdf_center_heatmap.png', bbox_inches='tight')
-            #plt.savefig(f'./{pdf_res_path}/radial_distribution_function/rdf_center_heatmap.pdf', bbox_inches='tight')
-        if show_verb: 
-            plt.show()
-        else:
-            plt.close()
-
-        if animated_plot_verb:
-            fig, ax = plt.subplots()
-            anim_running = True
-
-            def onClick(event):
-                global anim_running
-                if anim_running:
-                    ani.event_source.stop()
-                    anim_running = False
-                else:
-                    ani.event_source.start()
-                    anim_running = True
-
-            line, = ax.plot(rList, rdf_c[0])
-            title = ax.set_title(f'RDF from center - {system_name} 0 s')
-            ax.set_ylim(-1, 15)
-
-            def animate(frame):
-                line.set_ydata(rdf_c[frame])  # update the data.
-                title.set_text(f'RDF from center - {system_name} {int(frame/fps)} s')
-                return line, 
-
-            fig.canvas.mpl_connect('button_press_event', onClick)
-            ani = matplotlib.animation.FuncAnimation(fig, animate, range(0, nFrames, fps), interval = 5, blit=False)
-            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_from_center.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
+            if save_verb: ani.save(f'./{res_path}/radial_distribution_function/rdf_br_{dr}.mp4', fps=60, extra_args=['-vcodec', 'libx264'])
             if show_verb:
                 plt.show()
             else:
